@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>데우스 엑스 마키나 - Deus Ex Machina</title>
+<!-- 모나 폰트는 style.css의 @font-face로 로드 (file:// 환경에서 preload CORS 오류 방지) -->
+<!-- GSAP 3: 부드러운 물리/모션 트위닝 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="chronos-cutscene-overlay" class="chronos-cutscene-overlay" style="display:none;"></div>
+
+<!-- 상시 BGM 음소거 버튼 -->
+<button id="bgm-mute-btn" class="bgm-mute-btn" onclick="if(window.BGM) BGM.toggleMute();" title="배경음악 음소거 토글">
+  <span class="bgm-icon">🔊</span>
+  <span class="bgm-label">BGM ON</span>
+</button>
+
+<!-- 사운드 및 모션 라이브러리 -->
+<script src="js/audio.js"></script>
+<script src="js/clock.js"></script>
+<script src="js/fx.js"></script>
+<!-- 게임 로직 스크립트 -->
+<script src="js/data.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

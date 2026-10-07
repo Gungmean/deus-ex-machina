@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ultimate Ornate Pixel Clock</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: radial-gradient(circle at center, #121520 0%, #040507 100%);
+      color: #f3e5ab;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .hud-title { text-align: center; margin-bottom: 14px; z-index: 10; }
+    .hud-title h1 {
+      font-size: 1.25rem; letter-spacing: 3px; color: #ffd740;
+      text-shadow: 0 0 12px rgba(255, 215, 64, 0.6); margin-bottom: 3px;
+    }
+    .hud-title p { font-size: 0.72rem; color: #9e8e6b; letter-spacing: 1.5px; }
+    
+    .canvas-container {
+      position: relative;
+      border: 3px solid #54411a;
+      border-radius: 20px;
+      background: #000;
+      box-shadow: 0 0 50px rgba(255, 200, 50, 0.25), inset 0 0 40px rgba(0, 0, 0, 0.95);
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    button {
+      background: linear-gradient(180deg, #3d3118 0%, #171108 100%);
+      border: 1px solid #d4af37;
+      color: #ffecb3;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      transition: all 0.1s;
+    }
+    button:active {
+      transform: scale(0.96);
+      background: #524221;
+    }
+    #btnBurst {
+      background: linear-gradient(180deg, #d49f2b 0%, #66430b 100%);
+      border-color: #ffd700;
+      color: #fff;
+      text-shadow: 0 0 6px #ffea00;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hud-title">
+    <h1>CHRONOS ARCANA</h1>
+    <p>PURE PIXEL ANTIQUE ENGINE</p>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="clock" width="380" height="380"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="btnBurst">⚡ 시간 역행 폭주 (Rewind Burst)</button>
+    <button id="btnToggle">정/역방향 전환</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('clock');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const CX = W / 2;
+    const CY = H / 2;
+    const RADIUS = 145;
+
+    let minuteAngle = 0;
+    let hourAngle = 0;
+    let gearAngle = 0;
+    let baseSpeed = 0.035;
+    let burstSpeed = 0;
+    let isRewinding = true;
+
+    const ROMAN = ["XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"];
+
+    function pxRect(x, y, w, h, fill, glow = null, blur = 0) {
+      ctx.save();
+      if (glow && blur > 0) {
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = blur;
+      }
+      ctx.fillStyle = fill;
+      ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+      ctx.restore();
+    }
+
+    // 1. 다이얼 및 눈금 (고퀄리티 보석 핀치 + 로마숫자)
+    function drawDial() {
+      // 내곽 황금 링
+      ctx.save();
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(CX, CY, RADIUS - 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(CX, CY, RADIUS - 26, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(168, 126, 32, 0.3)';
+      ctx.stroke();
+      ctx.restore();
+
+      for (let i = 0; i < 60; i++) {
+        const ang = (i * Math.PI / 30) - Math.PI / 2;
+        const isMajor = (i % 5 === 0);
+        const isQuarter = (i % 15 === 0);
+
+        if (isMajor) {
+          const pDist = RADIUS - 12;
+          const mx = CX + Math.cos(ang) * pDist;
+          const my = CY + Math.sin(ang) * pDist;
+
+          // 보석 눈금 소켓
+          pxRect(mx - 3, my - 3, 6, 6, '#ffd54f', '#ffe27d', 8);
+          pxRect(mx - 2, my - 2, 4, 4, '#fff9c4');
+          pxRect(mx - 1, my - 1, 2, 2, '#ffffff');
+
+          // 로마 숫자
+          const numIdx = i / 5;
+          const numDist = RADIUS - 36;
+          const nx = CX + Math.cos(ang) * numDist;
+          const ny = CY + Math.sin(ang) * numDist + 4;
+
+          ctx.save();
+          ctx.font = isQuarter ? 'bold 11px "Courier New", monospace' : '9px "Courier New", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = isQuarter ? '#fff199' : '#d4af37';
+          ctx.shadowColor = 'rgba(255, 215, 64, 0.7)';
+          ctx.shadowBlur = isQuarter ? 8 : 4;
+          ctx.fillText(ROMAN[numIdx], nx, ny);
+          ctx.restore();
+        } else {
+          const sx = CX + Math.cos(ang) * (RADIUS - 10);
+          const sy = CY + Math.sin(ang) * (RADIUS - 10);
+          pxRect(sx - 1, sy - 1, 2, 2, 'rgba(224, 185, 75, 0.5)');
+        }
+      }
+    }
+
+    // 2. 중앙 톱니바퀴 메커니즘
+    function drawGears() {
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.rotate(gearAngle);
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-24, -24, 48, 48);
+
+      for (let g = 0; g < 8; g++) {
+        const ga = g * (Math.PI / 4);
+        pxRect(Math.cos(ga) * 28 - 2, Math.sin(ga) * 28 - 2, 4, 4, '#ffca28');
+      }
+      ctx.restore();
+
+      // 중앙 보석 너트
+      pxRect(CX - 5, CY - 5, 10, 10, '#ffd54f', '#ffd740', 14);
+      pxRect(CX - 3, CY - 3, 6, 6, '#fffbe6');
+      pxRect(CX - 1, CY - 1, 2, 2, '#ffffff');
+    }
+
+    // 3. 초고퀄 앤티크 바늘 렌더러 (클로버 장식 + 입체 음영)
+    function drawOrnateHand(angle, length, isHour) {
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.rotate(angle);
+
+      const bodyColor = isHour ? '#f5ce62' : '#fff4b8';
+      const shadowColor = isHour ? '#8c5e0d' : '#b88b23';
+      const highlight = '#ffffff';
+
+      ctx.shadowColor = isHour ? 'rgba(255, 200, 40, 0.8)' : 'rgba(255, 240, 160, 0.95)';
+      ctx.shadowBlur = isHour ? 12 : 16;
+
+      // 후면 카운터웨이트 (무게추)
+      pxRect(-3, 0, 6, 16, shadowColor);
+      pxRect(-2, 0, 4, 16, bodyColor);
+      pxRect(-5, 12, 10, 10, shadowColor);
+      pxRect(-4, 13, 8, 8, bodyColor);
+      pxRect(-2, 15, 4, 4, highlight);
+
+      // 메인 바늘 기둥
+      const w = isHour ? 4 : 3;
+      pxRect(-w / 2 - 1, -length, w + 2, length, shadowColor);
+      pxRect(-w / 2, -length, w, length, bodyColor);
+      pxRect(-0.5, -length, 1, length, highlight);
+
+      // 바로크풍 고딕 장식 고리
+      const ornY = -length * (isHour ? 0.58 : 0.64);
+      const ornSize = isHour ? 20 : 16;
+      ctx.strokeStyle = shadowColor;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(-ornSize / 2, ornY - ornSize / 2, ornSize, ornSize);
+      ctx.strokeStyle = bodyColor;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-ornSize / 2, ornY - ornSize / 2, ornSize, ornSize);
+      pxRect(-2, ornY - 2, 4, 4, highlight);
+
+      // 뾰족한 창끝 팁 (Spear Tip)
+      const tipLen = isHour ? 16 : 22;
+      for (let t = 0; t < tipLen; t++) {
+        const tw = Math.max(1, Math.floor((1 - t / tipLen) * (isHour ? 6 : 4)));
+        pxRect(-tw / 2, -length - t, tw, 1, (t % 2 === 0) ? highlight : bodyColor);
+      }
+
+      ctx.restore();
+    }
+
+    // 메인 렌더 루프
+    function render() {
+      // 잔상 연출 (Motion Blur)
+      ctx.fillStyle = burstSpeed > 0.05 ? 'rgba(4, 5, 7, 0.18)' : 'rgba(4, 5, 7, 0.35)';
+      ctx.fillRect(0, 0, W, H);
+
+      const dir = isRewinding ? -1 : 1;
+      const speed = (baseSpeed + burstSpeed) * dir;
+      minuteAngle += speed;
+      hourAngle += speed / 12;
+      gearAngle -= speed * 0.5;
+
+      if (burstSpeed > 0.001) {
+        burstSpeed *= 0.97;
+      } else {
+        burstSpeed = 0;
+      }
+
+      // 렌더 계층 순서
+      drawDial();
+      drawGears();
+      drawOrnateHand(hourAngle, RADIUS * 0.52, true);   // 시침
+      drawOrnateHand(minuteAngle, RADIUS * 0.82, false); // 분침
+
+      requestAnimationFrame(render);
+    }
+
+    document.getElementById('btnBurst').addEventListener('click', () => {
+      isRewinding = true;
+      burstSpeed = 0.65;
+    });
+
+    document.getElementById('btnToggle').addEventListener('click', () => {
+      isRewinding = !isRewinding;
+    });
+
+    render();
+  </script>
+</body>
+</html>
