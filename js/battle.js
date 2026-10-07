@@ -18,9 +18,8 @@ let isAutoRunning = false;
 function D(u) {
   if (!u) return {};
   const enemies = (typeof window !== 'undefined' && window.ENEMIES) || ENEMIES;
-  const king = (typeof window !== 'undefined' && window.KING) || KING;
   const classBy = (typeof window !== 'undefined' && window.CLASS_BY) || CLASS_BY;
-  return (u.side === 'e' ? enemies[u.eid] : u.king ? king : classBy[u.cid]) || {};
+  return (u.side === 'e' ? enemies[u.eid] : classBy[u.cid]) || {};
 }
 function uname(u) { const d = D(u); return u.promoted && d.promo ? d.promo.name : (d.name || ''); }
 function uicon(u) { return D(u).icon || '♟️'; }
@@ -49,17 +48,16 @@ function cardOwner(c) {
   if (!B) return null;
   if (c.cls === 'common') {
     const active = B.activeUnits && B.activeUnits.length ? B.activeUnits[0] : null;
-    const currentSel = (B.sel && B.sel.side === 'p' && !B.sel.dead) ? B.sel : (active || P.king);
-    return { unit: currentSel, isKingProxy: false, isCommon: true };
+    const livingAllies = B.units.filter(u => u.side === 'p' && !u.dead);
+    const currentSel = (B.sel && B.sel.side === 'p' && !B.sel.dead) ? B.sel : (active || livingAllies[0]);
+    return { unit: currentSel, isCommon: true };
   }
-  const alive = B.units.find(u => u.side === 'p' && !u.king && u.cid === c.cls && !u.dead);
-  if (alive) return { unit: alive, isKingProxy: false };
-  // 폰 사망 시 국왕(킹)이 대리 발동 (+1 코스트 페널티)
-  if (P.king && !P.king.dead) return { unit: P.king, isKingProxy: true };
+  const alive = B.units.find(u => u.side === 'p' && u.cid === c.cls && !u.dead);
+  if (alive) return { unit: alive };
   return null;
 }
 function effectiveCardCost(c, ownerInfo) {
-  return c.cost + (ownerInfo && ownerInfo.isKingProxy ? 1 : 0);
+  return c.cost;
 }
 
 const need = lv => 3 + 2 * lv;
@@ -152,7 +150,7 @@ function computeEnemyIntent(e) {
   }
   const targets = attackTargets(e);
   if (targets.length) {
-    targets.sort((a, b) => (b.king ? 1 : 0) - (a.king ? 1 : 0) || a.hp - b.hp);
+    targets.sort((a, b) => a.hp - b.hp);
     const target = targets[0];
     const dmg = effAtk(e);
     return {
@@ -236,7 +234,7 @@ async function applyKnockback(target, fromX, fromY, distance = 1) {
 
 // ----- 피해 및 처치 판정 -----
 function gainXp(u, n) {
-  if (u.king || u.level >= MAXLV) return;
+  if (u.level >= MAXLV) return;
   u.xp += n;
   while (u.level < MAXLV && u.xp >= need(u.level)) {
     u.xp -= need(u.level);
@@ -253,7 +251,7 @@ function gainXp(u, n) {
 function dealDamage(target, amt, src) {
   if (!B.units.includes(target) || target.dead) return;
 
-  // 전사 패시브: 인접 아군(킹 포함) 피격 시 전사가 대신 맞아줌 (스탠스 도발)
+  // 전사 패시브: 인접 아군 피격 시 전사가 대신 맞아줌 (스탠스 도발)
   if (target.side === 'p' && target.cid !== 'warrior') {
     const warrior = B.units.find(u => u.side === 'p' && u.cid === 'warrior' && !u.dead && cheb(u, target.x, target.y) <= 1);
     if (warrior && !warrior.guardedThisTurn) {
@@ -295,14 +293,16 @@ function dealDamage(target, amt, src) {
 
 function checkEnd() {
   if (B.over) return;
-  if (P.king.hp <= 0) {
+  const livingParty = B.units.filter(u => u.side === 'p' && !u.dead);
+  if (livingParty.length === 0) {
     B.over = true;
     Sound.defeat();
+    log('💀 원정대 전원이 전멸했습니다...');
     setTimeout(() => B.onEnd(false), 900 / GameSpeed);
     return;
   }
   const livingEnemies = B.units.filter(u => u.side === 'e' && !u.dead);
-  if (!livingEnemies.length && B.waveIdx >= B.enc.waves.length) {
+  if (!livingEnemies.length && (!B.enc.waves || B.waveIdx >= B.enc.waves.length)) {
     B.over = true;
     Sound.victory();
     log('🏆 전장의 모든 적을 섬멸했습니다!');
@@ -473,7 +473,8 @@ async function rewindTurn() {
   B.sel = null;
 
   log('⏪ [수 무르기]: 시간을 거꾸로 되감아 턴 시작 시점으로 회귀했습니다!');
-  float(P.king.x, P.king.y, 'TIME REWIND', 'buff');
+  const liveHero = B.units.find(u => u.side === 'p' && !u.dead);
+  if (liveHero) float(liveHero.x, liveHero.y, 'TIME REWIND', 'buff');
 
   if (statusTag) {
     statusTag.className = 'clock-status-tag time-stopped';
@@ -646,11 +647,12 @@ async function executeCardAction(act) {
   try {
     const c = CARDS[act.cardId];
     if (!c) return;
-  const o = B.units.find(u => u.uid === act.ownerUid) || P.king;
-  const tx = act.tx, ty = act.ty;
+    const o = B.units.find(u => u.uid === act.ownerUid) || B.units.find(u => u.side === 'p' && !u.dead);
+    if (!o) return;
+    const tx = act.tx, ty = act.ty;
 
-  const oElem = document.getElementById('unit-' + o.uid);
-  const theme = o.king ? '#ffd700' : (CLASS_BY[o.cid]?.theme || '#ffd700');
+    const oElem = document.getElementById('unit-' + o.uid);
+    const theme = CLASS_BY[o.cid]?.theme || '#ffd700';
 
   Sound.cardPlay();
   if (oElem) {
@@ -878,20 +880,18 @@ function startBattle(enc, onEnd) {
   };
 
   if (boardSize === 6) {
-    // 6×6 일반/엘리트 스테이지: 국왕 후열 중앙(2, 5), 폰 4명 전열 중앙(1~4, 4)
-    place(P.king, 2, 5);
+    // 6×6 일반/엘리트 스테이지: 폰 4명 후열 중앙 배치 (x: 1~4, y: 5)
     const living = P.party.filter(p => p.hp > 0);
     const startX = Math.max(0, Math.floor((6 - living.length) / 2));
     living.forEach((p, idx) => {
-      place(p, startX + idx, 4);
+      place(p, startX + idx, 5);
     });
   } else {
-    // 8×8 보스전 스테이지: 국왕 후열 중앙(3, 7), 폰 4명 전열 중앙(2~5, 6)
-    place(P.king, 3, 7);
+    // 8×8 보스전 스테이지: 폰 4명 후열 중앙 배치 (x: 2~5, y: 7)
     const living = P.party.filter(p => p.hp > 0);
     const startX = Math.max(0, Math.floor((8 - living.length) / 2));
     living.forEach((p, idx) => {
-      place(p, startX + idx, 6);
+      place(p, startX + idx, 7);
     });
   }
 
@@ -993,7 +993,7 @@ function dealTurnHand() {
   const newHand = [];
 
   // 1) 생존한 아군 폰 4명 각각의 전용 카드 1장씩 드로우
-  const livingPawns = B.units.filter(u => u.side === 'p' && !u.king && !u.dead);
+  const livingPawns = B.units.filter(u => u.side === 'p' && !u.dead);
   livingPawns.forEach(u => {
     const cls = CLASS_BY[u.cid];
     if (!cls) return;
@@ -1086,7 +1086,7 @@ async function playCard(i, tx, ty) {
   const cardElems = document.querySelectorAll('#hand .card');
   const cardElem = cardElems[i];
   const oElem = document.getElementById('unit-' + o.uid);
-  const theme = o.king ? '#ffd700' : (CLASS_BY[o.cid]?.theme || '#ffd700');
+  const theme = CLASS_BY[o.cid]?.theme || '#ffd700';
 
   Sound.cardPlay();
   if (cardElem && oElem) {
@@ -1101,11 +1101,7 @@ async function playCard(i, tx, ty) {
   const pw = (o.promoted ? 1 : 0) + (c.ult ? 2 : 0);
   const fx = c.fx;
 
-  if (ownerInfo.isKingProxy) {
-    log(`👑 국왕의 대리 지휘: [${c.name}] 발동! (코스트 +1)`);
-  } else {
-    log(`🃏 ${uname(o)}: [${c.name}] 발동!`);
-  }
+  log(`🃏 ${uname(o)}: [${c.name}] 발동!`);
 
   // 1) 헌터 후퇴 연계 (애로우 블로우: 뒤로 1칸 도약)
   if (c.retreat) {
@@ -1293,12 +1289,13 @@ async function autoPlayTurn(mode = 'winrate') {
       // 바나나 임시 카드 즉시 사용
       const bananaCard = playable.find(p => p.card.temp);
       if (bananaCard) {
-        chosenAction = { idx: bananaCard.idx, x: P.king.x, y: P.king.y };
+        const mostHurt = livingAllies.find(a => a.hp < a.maxHp) || livingAllies[0];
+        chosenAction = { idx: bananaCard.idx, x: mostHurt ? mostHurt.x : 0, y: mostHurt ? mostHurt.y : 0 };
       }
 
       // 아군 힐/방어 우선
       if (!chosenAction) {
-        const targetAlly = P.king.hp < P.king.maxHp * 0.75 ? P.king : livingAllies.find(a => a.hp < a.maxHp * 0.5);
+        const targetAlly = livingAllies.find(a => a.hp < a.maxHp * 0.5) || livingAllies.find(a => a.hp < a.maxHp * 0.75);
         if (targetAlly) {
           const supportCard = playable.find(p => p.card.fx.heal || p.card.fx.shield);
           if (supportCard) {
@@ -1385,8 +1382,8 @@ async function autoPlayTurn(mode = 'winrate') {
 
     if (mode === 'winrate') {
       targets.sort((a, b) => {
-        const aThreat = a.intent && a.intent.target === P.king ? 1 : 0;
-        const bThreat = b.intent && b.intent.target === P.king ? 1 : 0;
+        const aThreat = (a.intent && a.intent.type === 'attack') ? 1 : 0;
+        const bThreat = (b.intent && b.intent.type === 'attack') ? 1 : 0;
         if (bThreat !== aThreat) return bThreat - aThreat;
         const aKill = a.hp <= effAtk(u) ? 1 : 0;
         const bKill = b.hp <= effAtk(u) ? 1 : 0;
@@ -1430,7 +1427,7 @@ async function autoPlayTurn(mode = 'winrate') {
         let bestDistScore = Infinity;
         for (const m of moves) {
           const minDist = Math.min(...enemies.map(e => Math.abs(e.x - m.x) + Math.abs(e.y - m.y)));
-          const score = u.king ? -minDist : Math.abs(minDist - 1.5);
+          const score = Math.abs(minDist - 1.5);
           if (score < bestDistScore) { bestDistScore = score; bestMove = m; }
         }
       } else {
@@ -1600,10 +1597,14 @@ async function endTurn() {
       }
     }
 
-    const king = P.king;
+    const livingAllies = B.units.filter(u => u.side === 'p' && !u.dead);
     const order = B.units
       .filter(u => u.side === 'e' && !u.dead)
-      .sort((a, b) => (Math.abs(a.x - king.x) + Math.abs(a.y - king.y)) - (Math.abs(b.x - king.x) + Math.abs(b.y - king.y)));
+      .sort((a, b) => {
+        const distA = livingAllies.length ? Math.min(...livingAllies.map(p => Math.abs(a.x - p.x) + Math.abs(a.y - p.y))) : 0;
+        const distB = livingAllies.length ? Math.min(...livingAllies.map(p => Math.abs(b.x - p.x) + Math.abs(b.y - p.y))) : 0;
+        return distA - distB;
+      });
 
     for (const e of order) {
       if (B.over) return;
@@ -1634,7 +1635,7 @@ async function enemyAct(e) {
   const tryAttack = async () => {
     const ts = attackTargets(e);
     if (!ts.length) return false;
-    ts.sort((a, b) => (b.king ? 1 : 0) - (a.king ? 1 : 0) || a.hp - b.hp);
+    ts.sort((a, b) => a.hp - b.hp);
     const target = ts[0];
     const elemE = document.getElementById(`unit-${e.uid}`);
     const elemT = document.getElementById(`unit-${target.uid}`);
@@ -1655,7 +1656,8 @@ async function enemyAct(e) {
   const opts = moveTiles(e);
   if (!opts.length) return;
 
-  const players = B.units.filter(u => u.side === 'p' && !u.dead), king = P.king;
+  const players = B.units.filter(u => u.side === 'p' && !u.dead);
+  if (!players.length) return;
   const ox = e.x, oy = e.y;
   const dist = (x, y, u) => Math.abs(x - u.x) + Math.abs(y - u.y);
   const cur = Math.min(...players.map(p => dist(ox, oy, p)));
@@ -1663,7 +1665,7 @@ async function enemyAct(e) {
   let best = null, bs = Infinity;
   for (const t of opts) {
     e.x = t.x; e.y = t.y;
-    let sc = Math.min(...players.map(p => dist(t.x, t.y, p))) + 0.4 * dist(t.x, t.y, king) + Math.random() * 0.5;
+    let sc = Math.min(...players.map(p => dist(t.x, t.y, p))) + Math.random() * 0.5;
     if (attackTargets(e).length) sc -= 100;
     if (sc < bs) { bs = sc; best = t; }
   }
@@ -1844,8 +1846,8 @@ function renderBattle() {
       let inner = '';
       if (u) {
         const done = u.side === 'p' && u.moved && u.attacked;
-        const clData = u.side === 'p' && !u.king ? CLASS_BY[u.cid] : null;
-        const themeColor = clData ? clData.theme : (u.king ? '#d4af37' : '#992222');
+        const clData = u.side === 'p' ? CLASS_BY[u.cid] : null;
+        const themeColor = clData ? clData.theme : '#992222';
 
         let intentHtml = '';
         if (u.side === 'e' && u.intent) {
@@ -1888,14 +1890,14 @@ function renderBattle() {
         }
 
         inner = `
-          <div id="unit-${u.uid}" class="unit ${u.side} ${u.king ? 'king' : ''} ${u === s ? 'sel' : ''} ${done ? 'done' : ''} ${u.frozen > 0 ? 'frozen' : ''} ${D(u).boss ? 'boss' : ''}" style="--unit-color:${themeColor}"
+          <div id="unit-${u.uid}" class="unit ${u.side} ${u === s ? 'sel' : ''} ${done ? 'done' : ''} ${u.frozen > 0 ? 'frozen' : ''} ${D(u).boss ? 'boss' : ''}" style="--unit-color:${themeColor}"
                onmouseenter="${u.side === 'p' ? `hoverPartyCard(${u.uid}, true)` : ''}"
                onmouseleave="${u.side === 'p' ? `hoverPartyCard(${u.uid}, false)` : ''}">
             ${planBadgeHtml}
             ${intentHtml}
             ${buffBadges ? `<div class="unit-badges-wrap">${buffBadges}</div>` : ''}
             <div class="unit-inner">
-              ${u.side === 'p' && !u.king && u.cid ? `
+              ${u.side === 'p' && u.cid ? `
                 <div class="unit-tile-face-wrap">
                   <img class="unit-tile-face-img" src="images/units/${u.cid}.png" alt="" onerror="this.parentElement.style.display='none'; this.parentElement.nextElementSibling.style.display='inline-block';" onload="this.parentElement.nextElementSibling.style.display='none';" />
                 </div>
@@ -1903,7 +1905,7 @@ function renderBattle() {
               ` : `
                 <span class="ico">${uicon(u)}</span>
               `}
-              ${u.side === 'p' && !u.king ? `<span class="lv-badge">${u.promoted ? '★' : ''}${u.level}</span>` : ''}
+              ${u.side === 'p' ? `<span class="lv-badge">${u.promoted ? '★' : ''}${u.level}</span>` : ''}
               <div class="hpbar-wrap">
                 <div class="hpbar"><i style="width:${Math.max(0, u.hp / u.maxHp * 100)}%"></i></div>
               </div>
@@ -1936,7 +1938,7 @@ function renderBattle() {
 
   document.getElementById('encname').innerHTML = `
     <b>${B.enc.name}</b> <span class="dim-gold">· 턴 ${B.turn}</span>
-    ${B.waveIdx < B.enc.waves.length ? `<span class="wave-tag">웨이브까지 ${Math.max(0, B.enc.waves[B.waveIdx].turn - B.turn)}턴</span>` : '<span class="wave-tag final">마지막 웨이브</span>'}
+    ${B.enc.waves && B.waveIdx < B.enc.waves.length ? `<span class="wave-tag">웨이브까지 ${Math.max(0, B.enc.waves[B.waveIdx].turn - B.turn)}턴</span>` : '<span class="wave-tag final">마지막 웨이브</span>'}
   `;
 
   document.getElementById('mana').innerHTML = `
@@ -1970,8 +1972,6 @@ function renderBattle() {
     let ownerBadge = '';
     if (!oInfo) {
       ownerBadge = '<span class="dead-txt">전투불능</span>';
-    } else if (oInfo.isKingProxy) {
-      ownerBadge = '<span class="proxy-txt">👑 킹 대리 (+1C)</span>';
     } else {
       ownerBadge = uname(oInfo.unit);
     }
@@ -2006,7 +2006,7 @@ function renderBattle() {
       const d = D(s);
       info.innerHTML = `
         <div class="info-header">
-          ${s.side === 'p' && !s.king && s.cid ? `
+          ${s.side === 'p' && s.cid ? `
             <div class="info-portrait">
               <img class="unit-tile-face-img" src="images/units/${s.cid}.png" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" onload="this.nextElementSibling.style.display='none';" />
               <span class="info-ico fallback-ico">${uicon(s)}</span>
@@ -2015,7 +2015,7 @@ function renderBattle() {
             <span class="info-ico">${uicon(s)}</span>
           `}
           <div>
-            <div class="info-title">${uname(s)} ${s.side === 'p' && !s.king ? `<span class="tag-gold">Lv.${s.level}${s.promoted ? ' ★전직' : ''}</span>` : ''}</div>
+            <div class="info-title">${uname(s)} ${s.side === 'p' ? `<span class="tag-gold">Lv.${s.level}${s.promoted ? ' ★전직' : ''}</span>` : ''}</div>
             <div class="info-side">${s.side === 'p' ? '아군 기물' : '적 몬스터'}</div>
           </div>
         </div>
@@ -2023,7 +2023,7 @@ function renderBattle() {
           <div><b>생명력</b>: ${s.hp} / ${s.maxHp} ${s.shield ? `<span class="gold-txt">(+🛡️${s.shield})</span>` : ''}</div>
           <div><b>공격력</b>: ${effAtk(s)} ${s.buff ? `<span class="gold-txt">(+${s.buff})</span>` : ''} ${s.energyStack ? `<span class="gold-txt">(기력+${s.energyStack})</span>` : ''}</div>
         </div>
-        ${s.side === 'p' && !s.king && d.passive ? `
+        ${s.side === 'p' && d.passive ? `
           <div class="passive-info-box">
             <b>고유 패시브 [${d.passive.name}]</b>: ${d.passive.desc}
           </div>` : ''}
@@ -2031,12 +2031,12 @@ function renderBattle() {
           <div class="promo-info-box">
             <b>체스 진화</b>: ${d.promo.chessDesc}
           </div>` : ''}
-        ${s.side === 'p' && !s.king ? `
+        ${s.side === 'p' ? `
           <div class="xp-bar-wrap">
             <div class="xp-label"><span>경험치</span><span>${s.level >= MAXLV ? 'MAX' : `${s.xp} / ${need(s.level)}`}</span></div>
             <div class="xp-bar"><i style="width:${s.level >= MAXLV ? 100 : (s.xp / need(s.level) * 100)}%"></i></div>
           </div>` : ''}
-        ${s.side === 'p' && !s.king ? `
+        ${s.side === 'p' ? `
           <div class="lock-assign-box" style="margin-top:8px;">
             <button class="btn lock-assign-btn ${P.lockedUnitCid === s.cid ? 'is-current-locked' : ''}" onclick="setLockedUnit('${s.cid}')" style="width:100%; font-size:11px; padding:5px 8px;">
               ${P.lockedUnitCid === s.cid ? '★ 다음 턴 확정 출진 중' : '🌟 이 영웅을 다음 턴 확정 출진으로 지정'}
@@ -2105,10 +2105,6 @@ function renderPartySidebar() {
   if (!container || !P || !B) return;
 
   const partyUnits = [];
-  if (P.king) {
-    const liveKing = (B.units && B.units.find(u => u.king && u.side === 'p')) || P.king;
-    partyUnits.push(liveKing);
-  }
   if (P.party) {
     P.party.forEach(p => {
       const live = (B.units && B.units.find(u => u.uid === p.uid && u.side === 'p')) || p;
@@ -2132,10 +2128,9 @@ function renderPartySidebar() {
   `;
 
   partyUnits.forEach(u => {
-    const isKing = !!u.king;
     const isDead = !!u.dead || u.hp <= 0;
     const isSelected = B.sel && B.sel.uid === u.uid;
-    const clData = !isKing ? (typeof CLASS_BY !== 'undefined' ? CLASS_BY[u.cid] : null) : null;
+    const clData = typeof CLASS_BY !== 'undefined' ? CLASS_BY[u.cid] : null;
     const themeColor = clData ? clData.theme : '#d4af37';
     const hpPct = Math.max(0, Math.min(100, (u.hp / (u.maxHp || 1)) * 100));
 
@@ -2146,12 +2141,7 @@ function renderPartySidebar() {
     const atkDesc = atkPat ? descPat(atkPat) : '-';
 
     // 레벨 표시
-    let lvText = '';
-    if (isKing) {
-      lvText = '<span class="party-lv-tag king-tag">👑 KING</span>';
-    } else {
-      lvText = `<span class="party-lv-tag">Lv.${u.level || 1}${u.promoted ? ' ★전직' : ''}</span>`;
-    }
+    const lvText = `<span class="party-lv-tag">Lv.${u.level || 1}${u.promoted ? ' ★전직' : ''}</span>`;
 
     // 행동/상태 태그
     let statusBadge = '';
@@ -2184,26 +2174,17 @@ function renderPartySidebar() {
     }
 
     // 초상화 HTML
-    let portraitHtml = '';
-    if (isKing) {
-      portraitHtml = `
-        <div class="party-portrait king-portrait">
-          <span class="party-portrait-crown">👑</span>
-        </div>
-      `;
-    } else {
-      portraitHtml = `
-        <div class="party-portrait">
-          <img class="party-portrait-img" src="images/units/${u.cid}.png" alt="${uname(u)}"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-               onload="this.nextElementSibling.style.display='none';" />
-          <span class="party-portrait-fallback" style="display:none;">${uicon(u)}</span>
-        </div>
-      `;
-    }
+    const portraitHtml = `
+      <div class="party-portrait">
+        <img class="party-portrait-img" src="images/units/${u.cid}.png" alt="${uname(u)}"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+             onload="this.nextElementSibling.style.display='none';" />
+        <span class="party-portrait-fallback" style="display:none;">${uicon(u)}</span>
+      </div>
+    `;
 
     html += `
-      <div class="party-card ${isDead ? 'dead' : ''} ${isSelected ? 'selected' : ''} ${isKing ? 'king-card' : ''}"
+      <div class="party-card ${isDead ? 'dead' : ''} ${isSelected ? 'selected' : ''}"
            data-uid="${u.uid || ''}"
            style="--hero-theme:${themeColor};"
            onclick="selectPartyUnit(${u.uid || 0})"
@@ -2221,7 +2202,7 @@ function renderPartySidebar() {
 
           <div class="party-details">
             <div class="party-row-top">
-              <span class="party-name" style="color:${isKing ? '#ffd54f' : themeColor}">${uname(u)}</span>
+              <span class="party-name" style="color:${themeColor}">${uname(u)}</span>
               <div class="party-badge-group">
                 ${lvText}
                 ${statusBadge}

@@ -205,15 +205,12 @@ const CLASSES = [
   },
 ];
 const CLASS_BY = Object.fromEntries(CLASSES.map(c => [c.id, c]));
-const KING = { name: '국왕 킹', icon: '♚', move: { dirs: 'all', range: 1 }, atkp: { dirs: 'all', range: 1 } };
-
 // 전역 객체 바인딩 (FX 및 타 모듈 호환성 보장)
 if (typeof window !== 'undefined') {
   window.CLASSES = CLASSES;
   window.CLASS_BY = CLASS_BY;
   window.CARDS = CARDS;
   window.COMMON_CARDS = COMMON_CARDS;
-  window.KING = KING;
 }
 
 // 적 몬스터

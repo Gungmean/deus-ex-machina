@@ -513,7 +513,6 @@ function newRun() {
   P = {
     gold: 60,
     party: selectIds.map(mk),
-    king: { side: 'p', king: true, hp: 14, maxHp: 14, atk: 1 },
     clockHands: { hour: null, minute: null, second: null, day: null },
     deck: [],
     pos: null,
@@ -564,11 +563,15 @@ function getEquippedHandsCount() {
 
 function hud() {
   const handsCount = getEquippedHandsCount();
+  const totalHp = P && P.party ? P.party.reduce((s, p) => s + p.hp, 0) : 0;
+  const maxTotalHp = P && P.party ? P.party.reduce((s, p) => s + p.maxHp, 0) : 0;
+  const aliveCount = P && P.party ? P.party.filter(p => p.hp > 0).length : 0;
+  const totalCount = P && P.party ? P.party.length : 0;
   return `
     <div class="hud">
       <div class="hud-left">
         <span class="hud-item gold-val">💰 ${P.gold} G</span>
-        <span class="hud-item hp-val">👑 킹 HP ${P.king.hp}/${P.king.maxHp}</span>
+        <span class="hud-item hp-val" title="원정대 총 생명력 및 생존 현황">❤️ 파티 HP ${totalHp}/${maxTotalHp} (${aliveCount}/${totalCount})</span>
         <span class="hud-item deck-val">🃏 덱 ${P.deck.length}장</span>
       </div>
       <div class="hud-right">
@@ -647,7 +650,6 @@ function onBattleEnd(win, node) {
     }
   });
 
-  P.king.hp = Math.min(P.king.maxHp, P.king.hp + 4);
   if (kind === 'boss') return showVictory();
 
   const gold = kind === 'elite' ? 40 + rnd(20) : 15 + rnd(12);
@@ -821,7 +823,6 @@ function buyCard(i) {
 
 function healAll(ratio) {
   P.party.forEach(p => p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * ratio)));
-  P.king.hp = Math.min(P.king.maxHp, P.king.hp + Math.ceil(P.king.maxHp * ratio));
 }
 
 function buyHeal() {
@@ -1014,7 +1015,7 @@ function showRest() {
         <div class="rest-card" onclick="doRest(1)">
           <span class="rest-ico">⛺</span>
           <h3>휴식</h3>
-          <p>국왕과 전 폰의 생명력을 <b>50% 회복</b>합니다.</p>
+          <p>원정대 전원의 생명력을 <b>50% 회복</b>합니다.</p>
         </div>
         <div class="rest-card" onclick="doRest(2)">
           <span class="rest-ico">⚔️</span>
@@ -1127,7 +1128,7 @@ function showGameOver() {
   app().innerHTML = `
     <div class="title-screen gameover">
       <div class="title-decor">💀</div>
-      <h1 class="main-title">국왕 킹이 쓰러졌습니다</h1>
+      <h1 class="main-title">원정대가 전멸했습니다</h1>
       <p class="title-desc">${P.pos ? P.pos.f + 1 : 0}층에서 여정이 마감되었습니다.<br>전열을 재정비하여 다시 도전하십시오.</p>
       <button class="btn big gold-btn" onclick="Sound.click(); showTitle()">메인으로 귀환</button>
     </div>`;
