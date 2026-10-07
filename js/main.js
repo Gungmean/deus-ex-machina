@@ -514,6 +514,7 @@ function newRun() {
     gold: 60,
     party: selectIds.map(mk),
     king: { side: 'p', king: true, hp: 14, maxHp: 14, atk: 1 },
+    clockHands: { hour: null, minute: null, second: null, day: null },
     deck: [],
     pos: null,
     nodes: []
@@ -556,7 +557,13 @@ function genMap() {
   P.nodes = floors.flat();
 }
 
+function getEquippedHandsCount() {
+  if (!P || !P.clockHands) return 0;
+  return Object.values(P.clockHands).filter(Boolean).length;
+}
+
 function hud() {
+  const handsCount = getEquippedHandsCount();
   return `
     <div class="hud">
       <div class="hud-left">
@@ -565,6 +572,7 @@ function hud() {
         <span class="hud-item deck-val">🃏 덱 ${P.deck.length}장</span>
       </div>
       <div class="hud-right">
+        <button class="btn sm nav-btn" onclick="Sound.click(); showClockHandsModal()" title="이번 원정에 장착된 시계초침 (투구/갑옷/바지/신발)">🕰️ 시계초침 (${handsCount}/4)</button>
         <button class="btn sm nav-btn" onclick="Sound.click(); showParty()">원정대 / 전직</button>
         <button class="btn sm nav-btn" onclick="Sound.click(); showDeck()">덱 확인</button>
       </div>
@@ -692,8 +700,41 @@ function cardRewardHtml(id, attr = '') {
     </div>`;
 }
 
-// ----- 방랑 상인 & 모닥불 휴식처 -----
+// ----- 방랑 상인 & 시계공의 공방 & 모닥불 휴식처 -----
+function renderHandSlotHtml(slot, label, defaultIcon) {
+  const item = (P && P.clockHands) ? P.clockHands[slot] : null;
+  if (item) {
+    return `
+      <div class="hand-slot equipped" style="--slot-color:${item.color};" onclick="inspectHandItem('${item.id}')" title="${item.desc}">
+        <div class="slot-cat">${label}</div>
+        <div class="slot-body">
+          <span class="slot-ico">${item.icon}</span>
+          <div class="slot-info">
+            <span class="slot-name" style="color:${item.color};">${item.name}</span>
+            <span class="slot-effect-tag">장착 중</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="hand-slot empty" title="미장착 슬롯: 시계공의 공방에서 50 G로 제련하여 장착할 수 있습니다.">
+      <div class="slot-cat">${label}</div>
+      <div class="slot-body">
+        <span class="slot-ico dim-ico">${defaultIcon}</span>
+        <div class="slot-info">
+          <span class="slot-name dim-name">미장착</span>
+          <span class="slot-empty-tag">빈 슬롯</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function showShop() {
+  if (!P.clockHands) {
+    P.clockHands = { hour: null, minute: null, second: null, day: null };
+  }
   if (!P.shopStock || P.shopNode !== P.pos) {
     P.shopNode = P.pos;
     const pool = P.party.flatMap(p => CLASS_BY[p.cid].cards);
@@ -707,9 +748,38 @@ function showShop() {
     ${hud()}
     <div class="shop-screen">
       <div class="shop-header">
-        <h2>🛒 방랑 상인의 마차</h2>
-        <p class="dim-desc">"원정대장 나리, 좋은 물건들이 많습니다. 천천히 둘러보시지요."</p>
+        <h2>🛒 방랑 상인의 마차 & 🕰️ 시계공의 공방</h2>
+        <p class="dim-desc">"원정대장 나리, 좋은 카드들과 신비로운 시계초침들이 준비되어 있습니다."</p>
       </div>
+
+      <!-- 🕰️ 시계공의 집 (The Watchmaker's Workshop) -->
+      <div class="watchmaker-house-panel">
+        <div class="wm-house-header">
+          <div class="wm-title-row">
+            <span class="wm-badge">CLOCKWORK FORGE</span>
+            <span class="wm-title">🕰️ 시계공의 공방 (The Watchmaker's Workshop)</span>
+          </div>
+          <p class="wm-quote">"인간의 마음속에는 4개의 바늘이 있소. 시침(투구), 분침(갑옷), 초침(바지), 일침(신발)이지."</p>
+        </div>
+
+        <div class="clock-hands-tray">
+          ${renderHandSlotHtml('hour', '시침 [투구]', '🕐')}
+          ${renderHandSlotHtml('minute', '분침 [갑옷]', '🕑')}
+          ${renderHandSlotHtml('second', '초침 [바지]', '⏱️')}
+          ${renderHandSlotHtml('day', '일침 [신발]', '📅')}
+        </div>
+
+        <div class="wm-action-row">
+          <button class="btn gold-btn wm-gacha-btn" onclick="drawClockHands()">
+            <span class="gacha-dice">🎲</span>
+            <span class="gacha-txt">시계초침 제련 (침 3개 중 택1)</span>
+            <b class="gacha-price">💰 50 G</b>
+          </button>
+        </div>
+      </div>
+
+      <!-- 카드 가판대 -->
+      <div class="shop-cards-title">📜 방랑 상인의 전술 비전서</div>
       <div class="shop-cards">
         ${P.shopStock.map((s, i) => `
           <div class="shop-item-wrap">
@@ -720,6 +790,7 @@ function showShop() {
           </div>
         `).join('')}
       </div>
+
       <div class="shop-services">
         <button class="btn service-btn" onclick="buyHeal()">
           <span>💊 파티 전원 체력 40% 회복</span>
@@ -790,6 +861,146 @@ function removeCard(i) {
   P.gold -= 40;
   P.deck.splice(i, 1);
   showShop();
+}
+
+// ===== 시계공의 집 뽑기 및 장비 관리 로직 =====
+function drawClockHands() {
+  if (!P) return;
+  if (P.gold < 50) {
+    if (window.Sound) Sound.defeat();
+    alert('골드가 부족합니다! (필요 골드: 50 G)');
+    return;
+  }
+
+  if (window.Sound) Sound.click();
+  P.gold -= 50;
+
+  // 3개의 랜덤 침 뽑기 (서로 다른 침으로 추첨)
+  const pool = shuffle(CLOCK_HANDS_LIST.slice());
+  const candidates = pool.slice(0, 3);
+
+  openHandsPickModal(candidates);
+}
+
+function openHandsPickModal(candidates) {
+  const modal = document.getElementById('modal');
+  if (!modal) return;
+
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-box wm-pick-modal">
+        <div class="wm-pick-header">
+          <span class="wm-pick-icon">🕰️</span>
+          <h2>시계공이 벼려낸 3개의 침</h2>
+          <p class="dim-desc">원하는 침 하나를 선택하여 장비하십시오. (슬롯에 즉시 장착되며 시계 연출이 변화합니다)</p>
+        </div>
+
+        <div class="wm-candidates-grid">
+          ${candidates.map(h => {
+            const currentEquipped = P.clockHands ? P.clockHands[h.slot] : null;
+            return `
+              <div class="wm-candidate-card" style="--hand-color:${h.color}; --hand-glow:${h.glow};" onclick="equipClockHand('${h.id}')">
+                <div class="wm-cand-slot-pill">${h.slotName} [${h.role}]</div>
+                <div class="wm-cand-icon-frame">
+                  <span class="wm-cand-icon">${h.icon}</span>
+                </div>
+                <div class="wm-cand-name" style="color:${h.color};">${h.name}</div>
+                <div class="wm-cand-desc">${h.desc}</div>
+                <div class="wm-cand-equip-status">
+                  ${currentEquipped ? `현재: <span class="curr-name" style="color:${currentEquipped.color};">${currentEquipped.name}</span>` : '<span class="empty-curr">현재 빈 슬롯</span>'}
+                </div>
+                <button class="btn gold-btn wm-pick-btn">선택 및 장착</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function equipClockHand(id) {
+  const hand = CLOCK_HANDS[id];
+  if (!hand || !P) return;
+
+  if (!P.clockHands) {
+    P.clockHands = { hour: null, minute: null, second: null, day: null };
+  }
+
+  P.clockHands[hand.slot] = hand;
+  if (window.Sound) Sound.levelUp();
+
+  const modal = document.getElementById('modal');
+  if (modal) modal.style.display = 'none';
+
+  showShop();
+}
+
+function inspectHandItem(id) {
+  showClockHandsModal();
+}
+
+function showClockHandsModal() {
+  const modal = document.getElementById('modal');
+  if (!modal || !P) return;
+
+  if (!P.clockHands) {
+    P.clockHands = { hour: null, minute: null, second: null, day: null };
+  }
+
+  const slots = [
+    { key: 'hour', label: '시침 [투구]', defIco: '🕐', desc: '시간의 무게를 버티는 방어와 수호의 바늘' },
+    { key: 'minute', label: '분침 [갑옷]', defIco: '🕑', desc: '전신의 흐름을 감싸는 단단한 판금 바늘' },
+    { key: 'second', label: '초침 [바지]', defIco: '⏱️', desc: '찰나의 순간을 가르는 쾌속 기동의 바늘' },
+    { key: 'day', label: '일침 [신발]', defIco: '📅', desc: '운명의 날을 향해 발을 내딛는 일침' }
+  ];
+
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-backdrop" onclick="document.getElementById('modal').style.display='none'">
+      <div class="modal-box wm-info-modal" onclick="event.stopPropagation()">
+        <div class="wm-pick-header">
+          <span class="wm-pick-icon">🕰️</span>
+          <h2>원정대 시계초침 장비함</h2>
+          <p class="dim-desc">이번 원정에서 획득한 시계초침 장비 목록입니다. (상점의 시계공의 공방에서 제련 가능)</p>
+        </div>
+
+        <div class="wm-equipped-grid">
+          ${slots.map(s => {
+            const h = P.clockHands[s.key];
+            if (h) {
+              return `
+                <div class="wm-equipped-card" style="--hand-color:${h.color}; --hand-glow:${h.glow};">
+                  <div class="wm-cand-slot-pill">${h.slotName} [${h.role}]</div>
+                  <div class="wm-cand-icon-frame">
+                    <span class="wm-cand-icon">${h.icon}</span>
+                  </div>
+                  <div class="wm-cand-name" style="color:${h.color};">${h.name}</div>
+                  <div class="wm-cand-desc">${h.desc}</div>
+                  <div class="wm-cand-status-tag" style="border-color:${h.color}; color:${h.color};">✓ 장착 중 (시계 공명 발동)</div>
+                </div>
+              `;
+            } else {
+              return `
+                <div class="wm-equipped-card empty">
+                  <div class="wm-cand-slot-pill">${s.label}</div>
+                  <div class="wm-cand-icon-frame empty">
+                    <span class="wm-cand-icon dim-ico">${s.defIco}</span>
+                  </div>
+                  <div class="wm-cand-name dim-name">미장착 슬롯</div>
+                  <div class="wm-cand-desc dim-desc">${s.desc}</div>
+                  <div class="wm-cand-status-tag empty">상점에서 제련 필요</div>
+                </div>
+              `;
+            }
+          }).join('')}
+        </div>
+
+        <button class="btn gold-btn" onclick="document.getElementById('modal').style.display='none'" style="margin-top:20px;">닫기</button>
+      </div>
+    </div>
+  `;
 }
 
 function showRest() {

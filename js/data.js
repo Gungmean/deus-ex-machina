@@ -372,8 +372,136 @@ function descPat(p) {
   return s;
 }
 
+// ===== 시계초침 장비 시스템 (Clock Hands Equipment System) =====
+// 시침 = 투구, 분침 = 갑옷, 초침 = 바지, 일침 = 신발
+const CLOCK_HANDS = {
+  // 1. 시침 (Hour Hand) - RPG '투구' 격
+  h_iron: {
+    id: 'h_iron', slot: 'hour', slotName: '시침', role: '투구',
+    name: '강철 시침', icon: '🕐',
+    color: '#e2e8f0', glow: 'rgba(226, 232, 240, 0.85)',
+    trail: 'silver', aura: 'aura-silver',
+    desc: '시간의 무게를 묵직하게 버텨내는 강철 시침 투구.'
+  },
+  h_gold: {
+    id: 'h_gold', slot: 'hour', slotName: '시침', role: '투구',
+    name: '황금 태엽 시침', icon: '👑',
+    color: '#ffd54f', glow: 'rgba(255, 213, 79, 0.95)',
+    trail: 'gold', aura: 'aura-gold',
+    desc: '왕실 시계공이 벼려낸 황금빛 시침. 찬란한 위엄을 발산합니다.'
+  },
+  h_flame: {
+    id: 'h_flame', slot: 'hour', slotName: '시침', role: '투구',
+    name: '홍련의 시침', icon: '🔥',
+    color: '#f87171', glow: 'rgba(239, 68, 68, 0.95)',
+    trail: 'flame', aura: 'aura-flame',
+    desc: '타오르는 불꽃의 기운을 품어 전장을 붉게 물들이는 투구 시침.'
+  },
+  h_void: {
+    id: 'h_void', slot: 'hour', slotName: '시침', role: '투구',
+    name: '심연의 시침', icon: '🔮',
+    color: '#c084fc', glow: 'rgba(168, 85, 247, 0.95)',
+    trail: 'void', aura: 'aura-void',
+    desc: '시공간의 공허를 꿰뚫어보는 신비로운 보랏빛 투구 시침.'
+  },
+
+  // 2. 분침 (Minute Hand) - RPG '갑옷' 격
+  m_brass: {
+    id: 'm_brass', slot: 'minute', slotName: '분침', role: '갑옷',
+    name: '황동 판금 분침', icon: '🛡️',
+    color: '#e0a96d', glow: 'rgba(224, 169, 109, 0.85)',
+    trail: 'brass', aura: 'aura-brass',
+    desc: '단단한 황동 갑옷처럼 충격을 흡수하는 중장갑 분침.'
+  },
+  m_frost: {
+    id: 'm_frost', slot: 'minute', slotName: '분침', role: '갑옷',
+    name: '서리 수정 분침', icon: '❄️',
+    color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.95)',
+    trail: 'frost', aura: 'aura-frost',
+    desc: '절대 영도의 냉기로 전신을 보호하는 차가운 얼음 갑옷 분침.'
+  },
+  m_jade: {
+    id: 'm_jade', slot: 'minute', slotName: '분침', role: '갑옷',
+    name: '비취 잎사귀 분침', icon: '🌿',
+    color: '#34d399', glow: 'rgba(52, 211, 153, 0.95)',
+    trail: 'jade', aura: 'aura-jade',
+    desc: '흐르는 생명력으로 상처를 감싸주는 비취빛 치유 분침.'
+  },
+  m_shadow: {
+    id: 'm_shadow', slot: 'minute', slotName: '분침', role: '갑옷',
+    name: '흑요석 분침', icon: '🌑',
+    color: '#94a3b8', glow: 'rgba(100, 116, 139, 0.9)',
+    trail: 'shadow', aura: 'aura-shadow',
+    desc: '적들의 시선을 차단하고 그림자 장막을 두르는 어둠의 분침.'
+  },
+
+  // 3. 초침 (Second Hand) - RPG '바지' 격
+  s_gale: {
+    id: 's_gale', slot: 'second', slotName: '초침', role: '바지',
+    name: '질풍의 초침', icon: '⚡',
+    color: '#67e8f9', glow: 'rgba(103, 232, 249, 0.95)',
+    trail: 'lightning', aura: 'aura-cyan',
+    desc: '바람처럼 민첩한 각력을 부여하여 찰나의 순간을 가르는 초침.'
+  },
+  s_ruby: {
+    id: 's_ruby', slot: 'second', slotName: '초침', role: '바지',
+    name: '진홍 루비 초침', icon: '💎',
+    color: '#fb7185', glow: 'rgba(244, 63, 94, 0.95)',
+    trail: 'ruby', aura: 'aura-ruby',
+    desc: '1초마다 맥박치며 폭발적인 도약력을 이끌어내는 루비 초침.'
+  },
+  s_amber: {
+    id: 's_amber', slot: 'second', slotName: '초침', role: '바지',
+    name: '호박석 정밀 초침', icon: '⏱️',
+    color: '#fbbf24', glow: 'rgba(245, 158, 11, 0.95)',
+    trail: 'amber', aura: 'aura-gold',
+    desc: '가장 순수한 시간을 째깍이는 정밀 크로노미터 바지 초침.'
+  },
+  s_phantom: {
+    id: 's_phantom', slot: 'second', slotName: '초침', role: '바지',
+    name: '환영의 초침', icon: '👻',
+    color: '#e879f9', glow: 'rgba(217, 70, 239, 0.95)',
+    trail: 'phantom', aura: 'aura-magenta',
+    desc: '현실과 환영의 경계를 넘나들며 다중 궤적을 그리는 초침.'
+  },
+
+  // 4. 일침 (Day Hand) - RPG '신발' 격
+  d_wanderer: {
+    id: 'd_wanderer', slot: 'day', slotName: '일침', role: '신발',
+    name: '방랑자의 일침', icon: '👟',
+    color: '#fef08a', glow: 'rgba(254, 240, 138, 0.9)',
+    trail: 'starlight', aura: 'aura-yellow',
+    desc: '천 리 길도 지치지 않고 내딛게 돕는 방랑자의 장화 일침.'
+  },
+  d_chronos: {
+    id: 'd_chronos', slot: 'day', slotName: '일침', role: '신발',
+    name: '크로노스의 일침', icon: '⌛',
+    color: '#a78bfa', glow: 'rgba(167, 139, 250, 0.95)',
+    trail: 'cosmos', aura: 'aura-purple',
+    desc: '시공간의 지평선을 딛고 서는 크로노스 전용 신발 일침.'
+  },
+  d_stride: {
+    id: 'd_stride', slot: 'day', slotName: '일침', role: '신발',
+    name: '도약의 일침', icon: '🪶',
+    color: '#4ade80', glow: 'rgba(74, 222, 128, 0.95)',
+    trail: 'wind', aura: 'aura-green',
+    desc: '운명의 다음 날을 향해 성큼 발을 뻗는 도약의 일침.'
+  },
+  d_eclipse: {
+    id: 'd_eclipse', slot: 'day', slotName: '일침', role: '신발',
+    name: '일식의 흑요 일침', icon: '🌘',
+    color: '#fda4af', glow: 'rgba(244, 63, 94, 0.85)',
+    trail: 'eclipse', aura: 'aura-crimson',
+    desc: '낮과 밤의 경계를 무너뜨려 신비로운 시간의 걸음을 내딛는 일침.'
+  }
+};
+
+const CLOCK_HANDS_LIST = Object.values(CLOCK_HANDS);
+
 if (typeof window !== 'undefined') {
   window.ENEMIES = ENEMIES;
   window.STAGE_THEMES = STAGE_THEMES;
   window.makeEncounter = makeEncounter;
+  window.CLOCK_HANDS = CLOCK_HANDS;
+  window.CLOCK_HANDS_LIST = CLOCK_HANDS_LIST;
 }

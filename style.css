@@ -4618,5 +4618,436 @@ button {
   filter: brightness(2.6) contrast(1.5) drop-shadow(0 0 16px #ef4444) !important;
 }
 
+/* ==========================================================================
+   🕰️ 시계공의 공방 (The Watchmaker's Workshop) & 시계초침 장비 시스템
+   ========================================================================== */
+.watchmaker-house-panel {
+  background: linear-gradient(180deg, rgba(38, 25, 16, 0.96) 0%, rgba(20, 13, 8, 0.98) 100%);
+  border: 2px solid #b8860b;
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-bottom: 28px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.85), inset 0 0 24px rgba(184, 134, 11, 0.15);
+  position: relative;
+  text-align: left;
+}
+
+.wm-house-header {
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(184, 134, 11, 0.25);
+  padding-bottom: 12px;
+}
+
+.wm-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wm-badge {
+  background: linear-gradient(135deg, #784518 0%, #4a270a 100%);
+  color: #ffd700;
+  border: 1px solid #d4af37;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 1.2px;
+  font-family: var(--font-title);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
+}
+
+.wm-title {
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: 800;
+  color: #fff9e6;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.4);
+}
+
+.wm-quote {
+  font-size: 13px;
+  color: #c9af91;
+  font-style: italic;
+  margin: 6px 0 0 0;
+  line-height: 1.4;
+}
+
+/* 4슬롯 트레이 (시침/분침/초침/일침) */
+.clock-hands-tray {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 820px) {
+  .clock-hands-tray {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.hand-slot {
+  background: #18110b;
+  border: 2px solid #4a3421;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 84px;
+}
+
+.hand-slot.equipped {
+  border-color: var(--slot-color, #ffd700);
+  background: linear-gradient(145deg, rgba(34, 23, 14, 0.95) 0%, rgba(18, 12, 8, 0.98) 100%);
+  box-shadow: 0 0 16px var(--slot-color, rgba(255, 215, 0, 0.25)), inset 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.hand-slot.equipped:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 24px var(--slot-color, rgba(255, 215, 0, 0.45));
+}
+
+.hand-slot.empty {
+  border-style: dashed;
+  border-color: #423020;
+  background: rgba(18, 12, 8, 0.6);
+  opacity: 0.8;
+  cursor: default;
+}
+
+.hand-slot.empty:hover {
+  border-color: #6d4f32;
+  opacity: 1;
+}
+
+.slot-cat {
+  font-size: 11px;
+  font-weight: 800;
+  color: #eeddc5;
+  letter-spacing: 0.5px;
+  font-family: var(--font-title);
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+
+.slot-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slot-ico {
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px var(--slot-color, #ffd700));
+}
+
+.slot-ico.dim-ico {
+  filter: grayscale(1);
+  opacity: 0.35;
+}
+
+.slot-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.slot-name {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-name.dim-name {
+  color: #786452;
+}
+
+.slot-effect-tag {
+  font-size: 10px;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+  margin-top: 3px;
+}
+
+.slot-empty-tag {
+  font-size: 10px;
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+  margin-top: 3px;
+}
+
+/* 50G 뽑기 액션 바 */
+.wm-action-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.wm-gacha-btn {
+  padding: 13px 30px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(180deg, #b8860b 0%, #855b06 60%, #523802 100%);
+  box-shadow: 0 4px 18px rgba(184, 134, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  border: 2px solid #ffd700;
+  color: #ffffff;
+}
+
+.wm-gacha-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, #d4a017 0%, #9e6d0a 60%, #664604 100%);
+  box-shadow: 0 6px 24px rgba(255, 215, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border-color: #fffde7;
+}
+
+.gacha-dice {
+  font-size: 20px;
+  animation: gachaDiceBob 2s ease-in-out infinite alternate;
+}
+
+@keyframes gachaDiceBob {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-3px) rotate(12deg); }
+}
+
+.gacha-price {
+  color: #fef08a;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(254, 240, 138, 0.4);
+  font-size: 14px;
+}
+
+/* 카드 가판대 구분 타이틀 */
+.shop-cards-title {
+  font-family: var(--font-title);
+  color: var(--gold-light);
+  font-size: 18px;
+  margin: 18px 0 14px 0;
+  font-weight: 700;
+  text-align: left;
+  border-bottom: 1px solid rgba(184, 134, 11, 0.3);
+  padding-bottom: 6px;
+}
+
+/* 시계초침 모달 (선택 모달 & 장비함 모달) */
+.wm-pick-modal,
+.wm-info-modal {
+  max-width: 860px !important;
+  width: 95% !important;
+  background: radial-gradient(ellipse at top, #2e1e12 0%, #150d07 100%) !important;
+  border: 3px solid #d4af37 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95), 0 0 32px rgba(212, 175, 55, 0.35) !important;
+  padding: 28px !important;
+}
+
+.wm-pick-header {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.wm-pick-icon {
+  font-size: 42px;
+  display: block;
+  margin-bottom: 6px;
+  animation: pulseHandsIco 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulseHandsIco {
+  0% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.4)); }
+  100% { transform: scale(1.08); filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.75)); }
+}
+
+.wm-pick-header h2 {
+  font-family: var(--font-title);
+  font-size: 24px;
+  color: #fff8e7;
+  margin: 0 0 6px 0;
+  text-shadow: 0 2px 6px #000, 0 0 14px rgba(255, 215, 0, 0.4);
+}
+
+.wm-candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .wm-candidates-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wm-candidate-card {
+  background: linear-gradient(180deg, #24170e 0%, #130c07 100%);
+  border: 2px solid var(--hand-color, #d4af37);
+  border-radius: 10px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px var(--hand-glow, rgba(212, 175, 55, 0.25));
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+
+.wm-candidate-card:hover {
+  transform: translateY(-6px) scale(1.025);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.85), 0 0 28px var(--hand-glow, rgba(212, 175, 55, 0.55));
+  border-color: #ffffff;
+}
+
+.wm-cand-slot-pill {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--hand-color, #d4af37);
+  color: #eeddc5;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 12px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
+}
+
+.wm-cand-icon-frame {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 0.65) 80%);
+  border: 2px solid var(--hand-color, #d4af37);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  box-shadow: 0 0 16px var(--hand-glow, rgba(212, 175, 55, 0.3));
+}
+
+.wm-cand-icon-frame.empty {
+  border-color: #4a3625;
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: none;
+}
+
+.wm-cand-icon {
+  font-size: 32px;
+}
+
+.wm-cand-name {
+  font-family: var(--font-title);
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.wm-cand-desc {
+  font-size: 12px;
+  color: #d6c6b2;
+  line-height: 1.5;
+  margin-bottom: 14px;
+  flex-grow: 1;
+}
+
+.wm-cand-equip-status {
+  font-size: 11px;
+  margin-bottom: 14px;
+  color: #a1a1aa;
+}
+
+.wm-cand-equip-status .curr-name {
+  font-weight: 700;
+}
+
+.wm-cand-equip-status .empty-curr {
+  color: #71717a;
+}
+
+.wm-pick-btn {
+  width: 100%;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* 시계초침 장비함 인포 모달 4그리드 */
+.wm-equipped-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 16px;
+}
+
+@media (max-width: 680px) {
+  .wm-equipped-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wm-equipped-card {
+  background: #1e130a;
+  border: 2px solid var(--hand-color, #d4af37);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px var(--hand-glow, rgba(212, 175, 55, 0.2));
+}
+
+.wm-equipped-card.empty {
+  border-style: dashed;
+  border-color: #4a3625;
+  background: #140d07;
+  box-shadow: none;
+}
+
+.wm-cand-status-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 10px;
+  border: 1px solid;
+  margin-top: 10px;
+}
+
+.wm-cand-status-tag.empty {
+  color: #71717a;
+  border-color: #3f3f46;
+  background: rgba(0, 0, 0, 0.3);
+}
+
 
 

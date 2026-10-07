@@ -273,19 +273,25 @@ const ChronosClock = (() => {
   }
 
   // 3. 초고퀄 앤티크 바늘 렌더러 (클로버 장식 + 입체 음영)
-  function drawOrnateHand(angle, length, isHour, pal) {
+  function drawOrnateHand(angle, length, isHour, pal, customHand) {
     if (!ctx) return;
     ctx.save();
     ctx.translate(CX, CY);
     ctx.rotate(angle);
 
-    const bodyColor = isHour ? pal.handHour : pal.handBody;
+    let bodyColor = isHour ? pal.handHour : pal.handBody;
+    let glowColor = pal.handGlow;
     const shadowColor = pal.handShadow;
     const highlight = '#ffffff';
 
+    if (customHand && customHand.color) {
+      bodyColor = customHand.color;
+      glowColor = customHand.glow || customHand.color;
+    }
+
     const baseBlur = isHour ? 14 : 18;
-    ctx.shadowColor = pal.handGlow;
-    ctx.shadowBlur = baseBlur + (freezeImpact > 0.1 ? 28 : 0);
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = baseBlur + (freezeImpact > 0.1 ? 28 : (customHand ? 12 : 0));
 
     // 후면 카운터웨이트 (무게추)
     pxRect(-4, 0, 8, 28, shadowColor);
@@ -322,17 +328,22 @@ const ChronosClock = (() => {
   }
 
   // 4. 고속 초침 렌더러 (정밀 크로노미터 스타일 가느다란 바늘)
-  function drawSecondHand(angle, length, pal) {
+  function drawSecondHand(angle, length, pal, customHand) {
     if (!ctx) return;
     ctx.save();
     ctx.translate(CX, CY);
     ctx.rotate(angle);
 
-    const handColor = pal.handSec || '#d4af37';
-    const glowColor = pal.handSecGlow || '#8c5e23';
+    let handColor = pal.handSec || '#d4af37';
+    let glowColor = pal.handSecGlow || '#8c5e23';
+
+    if (customHand && customHand.color) {
+      handColor = customHand.color;
+      glowColor = customHand.glow || customHand.color;
+    }
 
     ctx.shadowColor = glowColor;
-    ctx.shadowBlur = (isStopped ? 24 : 12) + (freezeImpact > 0.1 ? 30 : 0);
+    ctx.shadowBlur = (isStopped ? 24 : 12) + (freezeImpact > 0.1 ? 30 : (customHand ? 12 : 0));
 
     // 후면 밸런스 꼬리
     pxRect(-2, 0, 4, 42, handColor);
@@ -350,6 +361,58 @@ const ChronosClock = (() => {
     // 중앙 허브 핀
     pxRect(-4, -4, 8, 8, '#ffffff');
 
+    ctx.restore();
+  }
+
+  // 5. 고대 천체 일침 (Day Hand) 렌더러 - 신발(Boots) 격
+  function drawDayHand(angle, length, pal, customHand) {
+    if (!ctx || !customHand) return;
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.rotate(angle);
+
+    const handColor = customHand.color || '#fef08a';
+    const glowColor = customHand.glow || 'rgba(254, 240, 138, 0.9)';
+
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 18 + (freezeImpact > 0.1 ? 24 : 10);
+
+    // 날렵하고 긴 바늘 기둥 (외곽 날짜 인덱스를 커버)
+    pxRect(-1.5, -length, 3, length, handColor);
+    pxRect(-0.5, -length, 1, length, '#ffffff');
+
+    // 팁 부분의 초승달 / 날짜 인덱스 포인터
+    const tipY = -length;
+    pxRect(-7, tipY - 8, 14, 8, handColor);
+    pxRect(-4, tipY - 14, 8, 6, handColor);
+    pxRect(-2, tipY - 18, 4, 4, '#ffffff');
+
+    // 중앙 허브 링
+    pxRect(-5, -5, 10, 10, handColor);
+    pxRect(-2, -2, 4, 4, '#ffffff');
+
+    ctx.restore();
+  }
+
+  // 6. 4종 시계초침 풀세트 공명 아우라 (Full Set Resonance)
+  function drawFullSetResonance(pal) {
+    if (!ctx) return;
+    ctx.save();
+    ctx.strokeStyle = '#ffd54f';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(255, 215, 64, 0.85)';
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.arc(CX, CY, RADIUS - 12, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#67e8f9';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = 'rgba(103, 232, 249, 0.8)';
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.arc(CX, CY, RADIUS - 20, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -375,12 +438,24 @@ const ChronosClock = (() => {
       }
     }
 
+    const hands = (typeof P !== 'undefined' && P && P.clockHands) ? P.clockHands : null;
+
     drawDial(pal);
     drawAmbientSparkles();
     drawGears(pal);
-    drawOrnateHand(hourAngle, RADIUS * 0.52, true, pal);   // 시침
-    drawOrnateHand(minuteAngle, RADIUS * 0.82, false, pal); // 분침
-    drawSecondHand(secondAngle, RADIUS * 0.92, pal);        // 초침
+
+    // 4가지 시계초침 장비 렌더링 (시침, 분침, 초침, 일침)
+    if (hands && hands.day) {
+      drawDayHand(hourAngle * 0.25, RADIUS * 0.94, pal, hands.day); // 일침 (신발)
+    }
+    drawOrnateHand(hourAngle, RADIUS * 0.52, true, pal, hands ? hands.hour : null);   // 시침 (투구)
+    drawOrnateHand(minuteAngle, RADIUS * 0.82, false, pal, hands ? hands.minute : null); // 분침 (갑옷)
+    drawSecondHand(secondAngle, RADIUS * 0.92, pal, hands ? hands.second : null);        // 초침 (바지)
+
+    // 4개 풀세트 장착 시 공명 이펙트
+    if (hands && hands.hour && hands.minute && hands.second && hands.day) {
+      drawFullSetResonance(pal);
+    }
 
     // 정지 순간 따뜻한 황금/호박빛 발광 & 파티클 렌더링
     if (freezeImpact > 0.01) {
