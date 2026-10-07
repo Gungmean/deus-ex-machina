@@ -1709,6 +1709,9 @@ function buildBattleUI() {
       <div class="scenery-particles"></div>
     </div>
 
+    <!-- 좌측 아군 원정대 현황 사이드바 -->
+    <aside class="party-sidebar" id="party-sidebar" aria-label="원정대 상태"></aside>
+
     <div class="left">
       <div class="enc-header">
         <div class="enc-title-group">
@@ -1885,7 +1888,9 @@ function renderBattle() {
         }
 
         inner = `
-          <div id="unit-${u.uid}" class="unit ${u.side} ${u.king ? 'king' : ''} ${u === s ? 'sel' : ''} ${done ? 'done' : ''} ${u.frozen > 0 ? 'frozen' : ''} ${D(u).boss ? 'boss' : ''}" style="--unit-color:${themeColor}">
+          <div id="unit-${u.uid}" class="unit ${u.side} ${u.king ? 'king' : ''} ${u === s ? 'sel' : ''} ${done ? 'done' : ''} ${u.frozen > 0 ? 'frozen' : ''} ${D(u).boss ? 'boss' : ''}" style="--unit-color:${themeColor}"
+               onmouseenter="${u.side === 'p' ? `hoverPartyCard(${u.uid}, true)` : ''}"
+               onmouseleave="${u.side === 'p' ? `hoverPartyCard(${u.uid}, false)` : ''}">
             ${planBadgeHtml}
             ${intentHtml}
             ${buffBadges ? `<div class="unit-badges-wrap">${buffBadges}</div>` : ''}
@@ -2089,6 +2094,209 @@ function renderBattle() {
   const btnDmg = document.getElementById('btn-damage');
   if (btnWin) btnWin.disabled = B.busy || B.over || isAutoRunning;
   if (btnDmg) btnDmg.disabled = B.busy || B.over || isAutoRunning;
+
+  // 좌측 아군 원정대 현황 사이드바 동적 렌더링
+  renderPartySidebar();
+}
+
+// ===== 좌측 아군 원정대 현황 사이드바 (초상화, HP, 이동/공격 범위, 레벨) =====
+function renderPartySidebar() {
+  const container = document.getElementById('party-sidebar');
+  if (!container || !P || !B) return;
+
+  const partyUnits = [];
+  if (P.king) {
+    const liveKing = (B.units && B.units.find(u => u.king && u.side === 'p')) || P.king;
+    partyUnits.push(liveKing);
+  }
+  if (P.party) {
+    P.party.forEach(p => {
+      const live = (B.units && B.units.find(u => u.uid === p.uid && u.side === 'p')) || p;
+      partyUnits.push(live);
+    });
+  }
+
+  const livingCount = partyUnits.filter(u => !u.dead && u.hp > 0).length;
+  const totalCount = partyUnits.length;
+
+  let html = `
+    <div class="party-sidebar-header">
+      <div class="party-header-title-row">
+        <span class="party-header-icon">🛡️</span>
+        <span class="party-header-title">원정대 현황</span>
+        <span class="party-header-badge">${livingCount}/${totalCount}</span>
+      </div>
+      <div class="party-header-sub">EXPEDITION SQUAD</div>
+    </div>
+    <div class="party-cards-list">
+  `;
+
+  partyUnits.forEach(u => {
+    const isKing = !!u.king;
+    const isDead = !!u.dead || u.hp <= 0;
+    const isSelected = B.sel && B.sel.uid === u.uid;
+    const clData = !isKing ? (typeof CLASS_BY !== 'undefined' ? CLASS_BY[u.cid] : null) : null;
+    const themeColor = clData ? clData.theme : '#d4af37';
+    const hpPct = Math.max(0, Math.min(100, (u.hp / (u.maxHp || 1)) * 100));
+
+    // 이동/공격 패턴 정보
+    const movePat = pat(u, 'move');
+    const atkPat = pat(u, 'atk');
+    const moveDesc = movePat ? descPat(movePat) : '-';
+    const atkDesc = atkPat ? descPat(atkPat) : '-';
+
+    // 레벨 표시
+    let lvText = '';
+    if (isKing) {
+      lvText = '<span class="party-lv-tag king-tag">👑 KING</span>';
+    } else {
+      lvText = `<span class="party-lv-tag">Lv.${u.level || 1}${u.promoted ? ' ★전직' : ''}</span>`;
+    }
+
+    // 행동/상태 태그
+    let statusBadge = '';
+    if (isDead) {
+      statusBadge = '<span class="party-status-tag status-dead">💀 전투불능</span>';
+    } else if (u.frozen > 0) {
+      statusBadge = `<span class="party-status-tag status-frozen">❄️ 빙결 (${u.frozen})</span>`;
+    } else if (u.moved && u.attacked) {
+      statusBadge = '<span class="party-status-tag status-done">✔️ 행동완료</span>';
+    } else if (!u.moved && !u.attacked) {
+      statusBadge = '<span class="party-status-tag status-ready">👣⚔️ 준비</span>';
+    } else if (u.moved && !u.attacked) {
+      statusBadge = '<span class="party-status-tag status-atk">⚔️ 공격대기</span>';
+    } else if (!u.moved && u.attacked) {
+      statusBadge = '<span class="party-status-tag status-move">👣 이동대기</span>';
+    }
+
+    // 인과율 계획 배지
+    let planTags = '';
+    if (B.planQueue && B.planQueue.length > 0) {
+      const allySteps = [];
+      B.planQueue.forEach((act, idx) => {
+        if (act.uid === u.uid || act.ownerUid === u.uid) {
+          allySteps.push(idx + 1);
+        }
+      });
+      if (allySteps.length > 0) {
+        planTags = `<span class="party-plan-badge" title="예약된 인과율 순번: ${allySteps.join(', ')}">Plan #${allySteps.join(',')}</span>`;
+      }
+    }
+
+    // 초상화 HTML
+    let portraitHtml = '';
+    if (isKing) {
+      portraitHtml = `
+        <div class="party-portrait king-portrait">
+          <span class="party-portrait-crown">👑</span>
+        </div>
+      `;
+    } else {
+      portraitHtml = `
+        <div class="party-portrait">
+          <img class="party-portrait-img" src="images/units/${u.cid}.png" alt="${uname(u)}"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+               onload="this.nextElementSibling.style.display='none';" />
+          <span class="party-portrait-fallback" style="display:none;">${uicon(u)}</span>
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="party-card ${isDead ? 'dead' : ''} ${isSelected ? 'selected' : ''} ${isKing ? 'king-card' : ''}"
+           data-uid="${u.uid || ''}"
+           style="--hero-theme:${themeColor};"
+           onclick="selectPartyUnit(${u.uid || 0})"
+           onmouseenter="hoverPartyUnit(${u.uid || 0}, true)"
+           onmouseleave="hoverPartyUnit(${u.uid || 0}, false)"
+           title="${isDead ? '전투불능 상태입니다.' : '클릭하여 체스판에서 선택 (이동/공격 범위 확인)'}">
+        
+        <div class="party-card-rivet r-tl"></div>
+        <div class="party-card-rivet r-tr"></div>
+        <div class="party-card-rivet r-bl"></div>
+        <div class="party-card-rivet r-br"></div>
+
+        <div class="party-card-main">
+          ${portraitHtml}
+
+          <div class="party-details">
+            <div class="party-row-top">
+              <span class="party-name" style="color:${isKing ? '#ffd54f' : themeColor}">${uname(u)}</span>
+              <div class="party-badge-group">
+                ${lvText}
+                ${statusBadge}
+                ${planTags}
+              </div>
+            </div>
+
+            <div class="party-hp-section">
+              <div class="party-hp-header">
+                <span class="party-hp-txt">❤️ <b>${u.hp}</b><small>/${u.maxHp}</small>${u.shield ? `<span class="party-shield-txt">+🛡️${u.shield}</span>` : ''}</span>
+                <span class="party-atk-txt">⚔️ <b>${effAtk(u)}</b>${u.buff ? `<small>+${u.buff}</small>` : ''}${u.energyStack ? `<small>⚡${u.energyStack}</small>` : ''}</span>
+              </div>
+              <div class="party-hp-bar">
+                <i style="width:${hpPct}%; background:${hpPct > 50 ? 'linear-gradient(90deg, #10b981, #34d399)' : (hpPct > 25 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #ef4444, #f87171)')};"></i>
+              </div>
+            </div>
+
+            <div class="party-range-specs">
+              <div class="party-range-item move-range" title="이동 범위: ${moveDesc}">
+                <span class="range-ico">👣</span>
+                <span class="range-val">${moveDesc}</span>
+              </div>
+              <div class="party-range-item atk-range" title="공격 범위: ${atkDesc}">
+                <span class="range-ico">⚔️</span>
+                <span class="range-val">${atkDesc}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function selectPartyUnit(uid) {
+  if (!B || B.busy || B.over || isAutoRunning) return;
+  const u = B.units.find(x => x.uid === uid && x.side === 'p');
+  if (!u || u.dead) return;
+
+  B.card = null;
+  FX.clearTargetingArrow();
+
+  if (B.sel === u) {
+    B.sel = null;
+  } else {
+    B.sel = u;
+    Sound.click();
+  }
+  renderBattle();
+}
+
+function hoverPartyUnit(uid, isHover) {
+  const elem = document.getElementById(`unit-${uid}`);
+  if (elem) {
+    if (isHover) elem.classList.add('party-hovered');
+    else elem.classList.remove('party-hovered');
+  }
+}
+
+function hoverPartyCard(uid, isHover) {
+  const card = document.querySelector(`.party-card[data-uid="${uid}"]`);
+  if (card) {
+    if (isHover) card.classList.add('board-hovered');
+    else card.classList.remove('board-hovered');
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.renderPartySidebar = renderPartySidebar;
+  window.selectPartyUnit = selectPartyUnit;
+  window.hoverPartyUnit = hoverPartyUnit;
+  window.hoverPartyCard = hoverPartyCard;
 }
 
 // 키보드 단축키

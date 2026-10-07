@@ -1610,14 +1610,469 @@ button {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 24px;
+  gap: 20px;
   padding: 14px 18px;
-  max-width: 1280px;
+  max-width: 1420px;
   margin: 0 auto;
   position: relative;
   border-radius: 14px;
   overflow: visible;
   transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+/* 좌측 아군 원정대 현황 사이드바 */
+.party-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.party-sidebar-header {
+  background: linear-gradient(180deg, #241c15 0%, #17110d 100%);
+  border: 2px solid #5a4128;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.party-header-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.party-header-icon {
+  font-size: 14px;
+  filter: drop-shadow(0 1px 2px #000);
+}
+
+.party-header-title {
+  font-family: var(--font-title);
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #eeddc5;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px #000;
+  margin-left: 5px;
+  flex: 1;
+}
+
+.party-header-badge {
+  font-family: var(--font-title);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffd54f;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid #7a5a22;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+
+.party-header-sub {
+  font-family: var(--font-title);
+  font-size: 9px;
+  color: #a38c62;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+.party-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* 개별 파티원 카드 */
+.party-card {
+  position: relative;
+  background: linear-gradient(180deg, #1f1712 0%, #130e0a 100%);
+  border: 2px solid #3d2b19;
+  border-radius: 6px;
+  padding: 7px 8px;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6), inset 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.party-card:hover {
+  border-color: var(--hero-theme, #c59b4c);
+  transform: translateX(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.8), 0 0 10px rgba(197, 155, 76, 0.3);
+  background: linear-gradient(180deg, #281e17 0%, #17110d 100%);
+}
+
+.party-card.selected {
+  border-color: #ffd54f !important;
+  background: linear-gradient(180deg, #2c2016 0%, #1a130c 100%) !important;
+  box-shadow: 0 0 14px rgba(255, 213, 79, 0.5), inset 0 0 10px rgba(255, 213, 79, 0.15) !important;
+  transform: translateX(6px);
+}
+
+.party-card.board-hovered {
+  border-color: #ffd54f !important;
+  transform: translateX(5px) !important;
+  box-shadow: 0 0 14px rgba(255, 213, 79, 0.6) !important;
+}
+
+.party-card.dead {
+  opacity: 0.45;
+  filter: grayscale(0.85);
+  cursor: not-allowed;
+  border-color: #2b1f18;
+}
+
+.party-card.dead:hover {
+  transform: none;
+  border-color: #2b1f18;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+.party-card.king-card {
+  border-color: #705322;
+}
+
+.party-card.king-card:hover {
+  border-color: #d4af37;
+}
+
+/* 4코너 픽셀 리벳 장식 */
+.party-card-rivet {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #c59b4c;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.party-card-rivet.r-tl { top: 2px; left: 2px; }
+.party-card-rivet.r-tr { top: 2px; right: 2px; }
+.party-card-rivet.r-bl { bottom: 2px; left: 2px; }
+.party-card-rivet.r-br { bottom: 2px; right: 2px; }
+
+.party-card-main {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 초상화 프레임 */
+.party-portrait {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1.5px solid var(--hero-theme, #664d26);
+  background: radial-gradient(circle, rgba(38, 28, 20, 0.95) 0%, rgba(18, 14, 10, 0.98) 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.party-portrait-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 51% 37%;
+  transform: scale(2.4);
+  transform-origin: 51% 37%;
+  image-rendering: pixelated;
+}
+
+.party-portrait-fallback {
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.party-portrait.king-portrait {
+  border-color: #ffd54f;
+  background: radial-gradient(circle, #523b14 0%, #1c1407 100%);
+  box-shadow: inset 0 0 10px rgba(255, 213, 79, 0.3), 0 0 8px rgba(255, 213, 79, 0.2);
+}
+
+.party-portrait-crown {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+  animation: crownShimmer 3s ease-in-out infinite alternate;
+}
+
+@keyframes crownShimmer {
+  from { transform: scale(1); filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9)); }
+  to { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8)); }
+}
+
+/* 우측 상세 정보 */
+.party-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* 1행: 이름 & 배지 */
+.party-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.party-name {
+  font-size: 13px;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 82px;
+}
+
+.party-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.party-lv-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd54f;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid #7a5a22;
+  border-radius: 3px;
+  padding: 1px 4px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.party-lv-tag.king-tag {
+  background: linear-gradient(135deg, #7a5a22 0%, #3e2d11 100%);
+  color: #fffde7;
+  border-color: #ffd54f;
+  font-weight: 900;
+  font-size: 9px;
+  padding: 1px 5px;
+}
+
+.party-status-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.party-status-tag.status-ready {
+  color: #86efac;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+}
+
+.party-status-tag.status-atk {
+  color: #fde047;
+  background: rgba(234, 179, 8, 0.2);
+  border: 1px solid #eab308;
+}
+
+.party-status-tag.status-move {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid #3b82f6;
+}
+
+.party-status-tag.status-done {
+  color: #9ca3af;
+  background: rgba(107, 114, 128, 0.2);
+  border: 1px solid #4b5563;
+}
+
+.party-status-tag.status-frozen {
+  color: #67e8f9;
+  background: rgba(6, 182, 212, 0.25);
+  border: 1px solid #06b6d4;
+}
+
+.party-status-tag.status-dead {
+  color: #f87171;
+  background: rgba(220, 38, 38, 0.25);
+  border: 1px solid #ef4444;
+}
+
+.party-plan-badge {
+  font-size: 9px;
+  font-weight: 800;
+  color: #fde047;
+  background: rgba(217, 119, 6, 0.3);
+  border: 1px solid #d97706;
+  border-radius: 3px;
+  padding: 1px 3px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* 2행: HP 바 & 수치 */
+.party-hp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.party-hp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.party-hp-txt {
+  color: #fca5a5;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.party-hp-txt b {
+  color: #ffffff;
+}
+
+.party-hp-txt small {
+  color: #c4b5a0;
+  font-size: 9.5px;
+}
+
+.party-shield-txt {
+  color: #38bdf8;
+  font-weight: 800;
+  margin-left: 3px;
+  font-size: 10px;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+}
+
+.party-atk-txt {
+  color: #fde047;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.party-atk-txt b {
+  color: #ffffff;
+}
+
+.party-atk-txt small {
+  color: #fed7aa;
+  font-size: 9px;
+  margin-left: 2px;
+}
+
+.party-hp-bar {
+  width: 100%;
+  height: 5px;
+  background: #140f0c;
+  border: 1px solid #3d2b19;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.party-hp-bar i {
+  display: block;
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+/* 3행: 이동 / 공격 범위 정보 */
+.party-range-specs {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 1px;
+  font-size: 10px;
+  color: #c4b5a0;
+}
+
+.party-range-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.party-range-item .range-ico {
+  font-size: 9px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.party-range-item .range-val {
+  font-weight: 600;
+  font-size: 9.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.party-range-item.move-range .range-val {
+  color: #a7f3d0;
+}
+
+.party-range-item.atk-range .range-val {
+  color: #fef08a;
+}
+
+/* 사이드바 호버 시 체스판 기물 반응 */
+.unit.party-hovered .unit-inner {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 18px #ffd700, 0 0 26px rgba(255, 215, 0, 0.8) !important;
+  transform: translateY(-4px) scale(1.08);
+  transition: all 0.15s ease-out;
+}
+
+@media (max-width: 1240px) {
+  .battle {
+    gap: 12px;
+    padding: 10px 10px;
+  }
+  .party-sidebar {
+    width: 220px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .battle {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .party-sidebar {
+    width: 100%;
+    order: 3;
+  }
+  .party-cards-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .party-card {
+    flex: 1 1 200px;
+  }
 }
 
 .left {
