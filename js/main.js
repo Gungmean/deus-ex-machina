@@ -248,6 +248,7 @@ function showSelect() {
             <span class="header-sub">CHESS FORMATION</span>
           </div>
           <div class="header-right">
+            <button class="btn sm gold-btn" onclick="showSynergyGuide()" style="margin-right: 15px;">✨ 시너지 도감</button>
             <div class="header-guide-pill">
               <span class="guide-dot">●</span>
               총 <b>10종</b>의 직업 중 원하는 <b>4명</b>을 선택하여 원정대를 편성할 수 있습니다.
@@ -505,6 +506,66 @@ function showSelect() {
   draw();
 }
 
+
+window.showSynergyGuide = function() {
+  let modal = document.getElementById('synergy-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'synergy-modal';
+    modal.className = 'synergy-modal-overlay';
+    modal.innerHTML = `
+      <div class="synergy-modal-box">
+        <div class="synergy-modal-header">
+          <h2>✨ 원소 시너지 가이드</h2>
+          <button class="btn sm" onclick="hideSynergyGuide()">닫기 ✕</button>
+        </div>
+        <div class="synergy-modal-body">
+          <div class="syn-card">
+            <div class="syn-title"><span class="u-badge wrath-b">🔥분노</span> (Wrath)</div>
+            <div class="syn-desc">공격 시 분노 스택 부여. 매 적 턴 시작 시 스택당 2의 <b>도트 고정 피해</b>.</div>
+            <div class="syn-classes">해당 직업: 불독 마법사, 인파이터, 캐논슈터</div>
+          </div>
+          <div class="syn-card">
+            <div class="syn-title"><span class="u-badge freeze-b">❄️냉정</span> (Composure)</div>
+            <div class="syn-desc">공격 시 냉정 스택 부여. 스택이 3이 되면 대상을 즉시 <b>빙결(행동 불가)</b> 상태로 만듦.</div>
+            <div class="syn-classes">해당 직업: 썬콜 마법사</div>
+          </div>
+          <div class="syn-card">
+            <div class="syn-title"><span class="u-badge madness-b">⚡광기</span> (Madness) - <b>트리거 속성</b></div>
+            <div class="syn-desc">
+              • <b>전도(얼음 반응):</b> 대상이 냉정/빙결 시 스택을 터뜨리며 추가 피해 및 <b>연쇄 번개(주변 적 전이)</b>.<br>
+              • <b>폭발(불 반응):</b> 대상이 분노 상태 시 스택을 터뜨리며 <b>대상과 주변 8칸 광역 폭발 피해</b>.
+            </div>
+            <div class="syn-classes">해당 직업: 어쌔신, 건슬링거</div>
+          </div>
+          <div class="syn-card">
+            <div class="syn-title"><span class="u-badge" style="background:#16a34a;color:#dcfce7;border:1px solid #22c55e;">💨자유</span> (Freedom)</div>
+            <div class="syn-desc">대상이 가진 모든 원소 스택(분노, 냉정, 광기)을 <b>인접한 적들에게 확산(전이)</b>.</div>
+            <div class="syn-classes">해당 직업: 헌터</div>
+          </div>
+          <div class="syn-card">
+            <div class="syn-title"><span class="u-badge" style="background:#78350f;color:#fef3c7;border:1px solid #b45309;">🛡️고집</span> (Tenacity)</div>
+            <div class="syn-desc">공격 및 스킬 사용 시 자신에게 <b>방어도 +2</b> 부여 (탱킹 라인 형성).</div>
+            <div class="syn-classes">해당 직업: 전사, 스피어맨</div>
+          </div>
+          <div class="syn-card">
+            <div class="syn-title"><span class="u-badge" style="background:#065f46;color:#d1fae5;border:1px solid #10b981;">🌿갈망</span> (Longing)</div>
+            <div class="syn-desc">공격 및 스킬 사용 시 자신의 <b>체력을 1 회복</b>.</div>
+            <div class="syn-classes">해당 직업: 클레릭</div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+};
+
+window.hideSynergyGuide = function() {
+  const modal = document.getElementById('synergy-modal');
+  if (modal) modal.style.display = 'none';
+};
+
 function newRun() {
   const mk = id => {
     const c = CLASS_BY[id];
@@ -578,6 +639,7 @@ function hud() {
         <button class="btn sm nav-btn" onclick="Sound.click(); showClockHandsModal()" title="이번 원정에 장착된 시계초침 (투구/갑옷/바지/신발)">🕰️ 시계초침 (${handsCount}/4)</button>
         <button class="btn sm nav-btn" onclick="Sound.click(); showParty()">원정대 / 전직</button>
         <button class="btn sm nav-btn" onclick="Sound.click(); showDeck()">덱 확인</button>
+        <button class="btn sm nav-btn" onclick="Sound.click(); showSettings()" title="BGM 볼륨 / 조작 방식">⚙️ 설정</button>
       </div>
     </div>`;
 }
@@ -1145,3 +1207,43 @@ function showVictory() {
 }
 
 showTitle();
+
+// ===== 설정 팝업 (BGM 볼륨 / 조작 방식) =====
+function getCtrlMode() {
+  try { return localStorage.getItem('dem_ctrl_mode') || 'click'; } catch (e) { return 'click'; }
+}
+function setCtrlMode(mode) {
+  try { localStorage.setItem('dem_ctrl_mode', mode); } catch (e) {}
+  if (typeof FX !== 'undefined' && FX.clearTargetingArrow) FX.clearTargetingArrow();
+  showSettings();
+}
+function onBgmVolume(v) {
+  if (window.BGM) {
+    BGM.setVolume(v / 100);
+    if (v > 0 && BGM.isMuted()) BGM.toggleMute();
+  }
+  const lbl = document.getElementById('bgm-vol-label');
+  if (lbl) lbl.textContent = v + '%';
+}
+function showSettings() {
+  const vol = window.BGM ? Math.round(BGM.getVolume() * 100) : 50;
+  const mode = getCtrlMode();
+  modal(`
+    <h2 class="modal-title">⚙️ 설정</h2>
+    <div class="settings-section">
+      <div class="settings-label">🎵 BGM 볼륨 <b id="bgm-vol-label">${vol}%</b></div>
+      <input type="range" class="settings-slider" min="0" max="100" value="${vol}" oninput="onBgmVolume(this.value)">
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">🎮 조작 방식</div>
+      <label class="settings-radio ${mode === 'click' ? 'on' : ''}" onclick="Sound.click(); setCtrlMode('click')">
+        <b>클릭 방식</b>
+        <span>유닛을 클릭해 선택한 뒤, 이동/공격 칸을 클릭</span>
+      </label>
+      <label class="settings-radio ${mode === 'drag' ? 'on' : ''}" onclick="Sound.click(); setCtrlMode('drag')">
+        <b>드래그 방식</b>
+        <span>아군 유닛을 드래그해서 놓기 &nbsp;·&nbsp; <b>좌클릭 드래그 = 공격</b> &nbsp;·&nbsp; <b>우클릭 드래그 = 이동</b><br>(드래그 방식에서는 우클릭 메뉴가 나타나지 않습니다)</span>
+      </label>
+    </div>
+  `);
+}

@@ -43,6 +43,81 @@ function pat(u, k) {
   return d[key];
 }
 
+
+// ===== 6-Attribute Synergy System =====
+async function applyElement(u, t, element) {
+  if (!element || t.dead) return;
+  if (t.side !== 'e') return; // only apply elements to enemies
+  
+  if (element === 'wrath') {
+    t.wrath = (t.wrath || 0) + 1;
+    float(t.x, t.y, `🔥 분노 ${t.wrath}`, 'dmg');
+  } else if (element === 'composure') {
+    t.composure = (t.composure || 0) + 1;
+    if (t.composure >= 3) {
+      t.frozen = (t.frozen || 0) + 1;
+      t.composure = 0;
+      float(t.x, t.y, '❄️ 빙결!', 'synergy');
+    } else {
+      float(t.x, t.y, `❄️ 냉정 ${t.composure}`, 'frz');
+    }
+  } else if (element === 'madness') {
+    if (t.composure > 0 || t.frozen > 0) {
+      t.composure = 0;
+      log(`⚡ 광기 시너지: 전도 발동!`);
+      float(t.x, t.y, '⚡ 연쇄전도!', 'synergy');
+      if(window.FX) FX.shake(6);
+      await sleep(150);
+      dealDamage(t, 4, u);
+      const chainTarget = B.units.find(e => e.side === 'e' && !e.dead && e !== t && cheb(e, t.x, t.y) <= 2);
+      if (chainTarget) {
+        dealDamage(chainTarget, 4, u);
+      }
+    } else if (t.wrath > 0) {
+      t.wrath = 0;
+      log(`💥 광기 시너지: 폭발 발동!`);
+      float(t.x, t.y, '💥 광폭발!', 'synergy');
+      if(window.FX) FX.shake(12);
+      await sleep(200);
+      const area = B.units.filter(e => e.side === 'e' && !e.dead && cheb(e, t.x, t.y) <= 1);
+      for(const e of area) dealDamage(e, 5, u);
+    } else {
+      t.madness = (t.madness || 0) + 1;
+      float(t.x, t.y, `⚡ 광기 ${t.madness}`, 'dmg');
+    }
+  } else if (element === 'freedom') {
+    const spread = [];
+    if (t.wrath > 0) spread.push('wrath');
+    if (t.composure > 0) spread.push('composure');
+    if (t.madness > 0) spread.push('madness');
+    if (spread.length > 0) {
+      log(`💨 자유 시너지: 원소 확산 발동!`);
+      float(t.x, t.y, '💨 원소확산!', 'synergy');
+      if(window.FX) FX.shake(5);
+      await sleep(150);
+      const area = B.units.filter(e => e.side === 'e' && !e.dead && e !== t && cheb(e, t.x, t.y) <= 1);
+      for(const e of area) {
+        if (t.wrath > 0) { e.wrath = (e.wrath || 0) + t.wrath; float(e.x, e.y, `🔥 분노 전이`, 'dmg'); }
+        if (t.composure > 0) { e.composure = (e.composure || 0) + t.composure; float(e.x, e.y, `❄️ 냉정 전이`, 'frz'); }
+        if (t.madness > 0) { e.madness = (e.madness || 0) + t.madness; float(e.x, e.y, `⚡ 광기 전이`, 'dmg'); }
+      }
+    }
+  }
+}
+
+function applySelfElement(u, element) {
+  if (!element || u.dead) return;
+  if (element === 'tenacity') {
+    u.shield = (u.shield || 0) + 2;
+    float(u.x, u.y, '🛡+2', 'blk');
+  } else if (element === 'longing') {
+    if (u.hp < u.maxHp) {
+      u.hp = Math.min(u.maxHp, u.hp + 1);
+      float(u.x, u.y, '+1', 'heal');
+    }
+  }
+}
+
 function unitAt(x, y) { return B ? B.units.find(u => u.x === x && u.y === y && !u.dead) : null; }
 function cardOwner(c) {
   if (!B) return null;
@@ -87,6 +162,36 @@ function toggleSpeed() {
 }
 
 // ----- 이동 / 공격 판정 (로열 나이트 등 확장) -----
+
+function getRangeTiles(u, type) {
+  const p = pat(u, type), res = [];
+  if (p.dirs === 'knight' || p.dirs === 'royalKnight') {
+    for (const [dx, dy] of KN) {
+      const x = u.x + dx, y = u.y + dy;
+      if (inb(x, y)) res.push({ x, y });
+    }
+  }
+  if (p.dirs === 'royalKnight') {
+    for (const [dx, dy] of DIRS.diag) {
+      for (let s = 1; s <= 2; s++) {
+        const x = u.x + dx * s, y = u.y + dy * s;
+        if (inb(x, y)) res.push({ x, y });
+      }
+    }
+    return res;
+  }
+  if (p.dirs === 'knight') return res;
+
+  for (const [dx, dy] of DIRS[p.dirs]) {
+    for (let s = 1; s <= p.range; s++) {
+      const x = u.x + dx * s, y = u.y + dy * s;
+      if (!inb(x, y)) break;
+      res.push({ x, y });
+    }
+  }
+  return res;
+}
+
 function moveTiles(u) {
   const p = pat(u, 'move'), res = [];
   if (p.dirs === 'knight' || p.dirs === 'royalKnight') {
@@ -143,36 +248,78 @@ function attackTargets(u) {
 }
 
 // ----- 슬더스식 적 의도 계산 -----
+
 function computeEnemyIntent(e) {
-  if (e.frozen > 0) return { type: 'frozen', icon: '❄️', desc: '빙결 상태 (행동 불가)' };
+  if (e.frozen > 0) return { type: 'frozen', icon: '❄️', desc: '빙결 상태 (행동 불가)', pattern: [] };
   if (D(e).summon && (B.turn + 1) % D(e).summon.every === 0) {
-    return { type: 'summon', icon: '😈', text: '소환', desc: '다음 턴에 수하 몬스터를 소환합니다!' };
+    return { type: 'summon', icon: '😈', text: '소환', desc: '수하 소환!', pattern: [] };
   }
-  const targets = attackTargets(e);
-  if (targets.length) {
-    targets.sort((a, b) => a.hp - b.hp);
-    const target = targets[0];
-    const dmg = effAtk(e);
-    return {
-      type: 'attack',
-      icon: '⚔️',
-      val: dmg,
-      target,
-      targetName: uname(target),
-      desc: `${uname(target)}에게 ${dmg}의 공격 예정!`
-    };
+  
+  let target = null;
+  let minDist = 999;
+  for (const u of B.units) {
+    if (u.side === 'p' && !u.dead) {
+      const d = cheb(u, e.x, e.y);
+      if (d < minDist) { minDist = d; target = u; }
+    }
   }
-  return { type: 'move', icon: '👣', text: '진격', desc: '아군 진형을 향해 이동합니다.' };
+
+  if (!target) return { type: 'idle', pattern: [] };
+
+  let dx = Math.sign(target.x - e.x);
+  let dy = Math.sign(target.y - e.y);
+  if (dx === 0 && dy === 0) dy = -1; // fallback
+
+  const dmg = effAtk(e);
+  let pattern = [];
+  let icon = '⚔️';
+  let desc = `${dmg}의 피해를 예고합니다.`;
+
+  if (e.eid === 'boar' || e.eid === 'pig' || e.eid === 'yeti') {
+    // 3칸 직선 관통 공격 (Charge/Beam)
+    if (Math.abs(target.x - e.x) > Math.abs(target.y - e.y)) dy = 0; else dx = 0;
+    for (let i = 1; i <= 3; i++) pattern.push({dx: dx*i, dy: dy*i});
+    icon = '🔥'; desc = `직선 3칸에 ${dmg}의 관통 공격!`;
+  } else if (e.eid === 'stump' || e.eid === 'balrog') {
+    // 주변 8칸 광역 (AoE)
+    for (const d of DIRS.all) pattern.push({dx: d[0], dy: d[1]});
+    icon = '💥'; desc = `주변 8칸에 ${dmg}의 광역 폭발!`;
+  } else if (e.eid === 'evileye') {
+    // 대각선 또는 저격
+    pattern.push({dx: dx*2, dy: dy*2});
+    pattern.push({dx: dx*3, dy: dy*3});
+    icon = '🎯'; desc = `원거리 2~3칸 저격 공격!`;
+  } else {
+    // 기본 근접
+    if (Math.abs(target.x - e.x) > Math.abs(target.y - e.y)) dy = 0; else dx = 0;
+    pattern.push({dx, dy});
+  }
+
+  return { type: 'attack', icon, val: dmg, dir: {dx, dy}, pattern, desc };
 }
+
+
+
+
+
 
 function updateAllEnemyIntents() {
   if (!B) return;
   for (const u of B.units) {
     if (u.side === 'e' && !u.dead) {
-      u.intent = computeEnemyIntent(u);
+      if (!u.intent) u.intent = computeEnemyIntent(u);
     }
   }
 }
+
+function refreshIntentsForNextTurn() {
+  if (!B) return;
+  for (const u of B.units) {
+    if (u.side === 'e') u.intent = null;
+  }
+  updateAllEnemyIntents();
+}
+
 
 // ----- 카드 대상 판정 -----
 function cardTargets(c, o) {
@@ -366,6 +513,12 @@ async function doAttack(u, t) {
   }
 
   log(`⚔️ ${uname(u)} → ${uname(t)} (${finalDmg} 피해)`);
+  
+  if (u.side === 'p') {
+    const element = D(u).element;
+    applySelfElement(u, element);
+    await applyElement(u, t, element);
+  }
   dealDamage(t, finalDmg, u);
   FX.shake(3);
 
@@ -487,6 +640,25 @@ async function rewindTurn() {
 }
 
 // ===== 인과율 플래닝 (지시 등록) =====
+
+function getDangerTiles() {
+  const danger = {};
+  if (!B) return danger;
+  for (const u of B.units) {
+    if (u.side === 'e' && !u.dead && u.intent && u.intent.pattern) {
+      for (const p of u.intent.pattern) {
+        const tx = u.x + p.dx;
+        const ty = u.y + p.dy;
+        if (inb(tx, ty)) {
+          const key = `${tx},${ty}`;
+          danger[key] = (danger[key] || 0) + (u.intent.val || 1);
+        }
+      }
+    }
+  }
+  return danger;
+}
+
 function planMove(u, x, y) {
   if (u.moved) return;
   const isKnight = pat(u, 'move').dirs === 'knight' || pat(u, 'move').dirs === 'royalKnight';
@@ -636,11 +808,38 @@ async function executeTimeline() {
     B.busy = false;
   }
 
-  // 4단계: 적 턴으로 전환
-  if (!B.over) {
-    await sleep(250);
-    endTurn();
+  
+  // 5단계: 적 턴 집행 (패턴 타격)
+  B.phase = 'enemy';
+  log('☠️ [적 턴 시작]: 예고된 타겟 범위에 공격을 쏟아붓습니다!');
+  
+  for (const e of B.units.filter(u => u.side === 'e' && !u.dead)) {
+    if (B.over) break;
+    if (e.intent && e.intent.type === 'attack' && e.intent.pattern) {
+      let fired = false;
+      for (const p of e.intent.pattern) {
+        const tx = e.x + p.dx;
+        const ty = e.y + p.dy;
+        if (inb(tx, ty)) {
+          // Visual effect for tile attack
+          if(window.FX) FX.createShockwave(tx * 68 + 34, ty * 68 + 34, '#dc2626');
+          float(tx, ty, '💥', 'dmg');
+          
+          const hitUnit = unitAt(tx, ty);
+          if (hitUnit && !hitUnit.dead) {
+            log(`🎯 ${uname(e)}의 공격이 ${uname(hitUnit)}에게 적중! (팀킬 포함)`);
+            dealDamage(hitUnit, e.intent.val, e);
+            fired = true;
+          }
+        }
+      }
+      if (fired) await sleep(250);
+    }
   }
+  
+  // 턴 종료 처리
+
+  if(!B.over) await endTurn();
 }
 
 async function executeCardAction(act) {
@@ -663,6 +862,9 @@ async function executeCardAction(act) {
 
   const pw = (o.promoted ? 1 : 0) + (c.ult ? 2 : 0);
   const fx = c.fx;
+  if (o.side === 'p') {
+    applySelfElement(o, D(o).element);
+  }
 
   log(`🃏 ${uname(o)}: [${c.name}] 발동!`);
 
@@ -731,6 +933,10 @@ async function executeCardAction(act) {
 
   for (const u of area) {
     if (u.side === 'e') {
+      if (o.side === 'p') {
+        const element = D(o).element;
+        await applyElement(o, u, element);
+      }
       if (fx.dmg) dealDamage(u, fx.dmg + pw, o);
       if (fx.freeze && B.units.includes(u)) {
         u.frozen = fx.freeze;
@@ -799,7 +1005,7 @@ function spawnEnemies(ids) {
       shield: 0,
       frozen: 0,
       buff: 0,
-      poison: 0,
+      poison: 0, wrath: 0, composure: 0, madness: 0,
       energyStack: 0,
       dead: false
     });
@@ -868,7 +1074,7 @@ function startBattle(enc, onEnd) {
       shield: 0,
       frozen: 0,
       buff: 0,
-      poison: 0,
+      poison: 0, wrath: 0, composure: 0, madness: 0,
       energyStack: 0,
       guardedThisTurn: false,
       reloadedThisTurn: false,
@@ -904,7 +1110,7 @@ function startBattle(enc, onEnd) {
         uid: unitIdCounter++, side: 'e', eid: bossId,
         hp: d.hp, maxHp: d.hp, atk: d.atk,
         x: 3, y: 0,
-        shield: 0, frozen: 0, buff: 0, poison: 0, energyStack: 0, dead: false
+        shield: 0, frozen: 0, buff: 0, poison: 0, wrath: 0, composure: 0, madness: 0, energyStack: 0, dead: false
       });
     }
     minions.forEach((mid, idx) => {
@@ -914,7 +1120,7 @@ function startBattle(enc, onEnd) {
         uid: unitIdCounter++, side: 'e', eid: mid,
         hp: d.hp, maxHp: d.hp, atk: d.atk,
         x: minionX, y: 0,
-        shield: 0, frozen: 0, buff: 0, poison: 0, energyStack: 0, dead: false
+        shield: 0, frozen: 0, buff: 0, poison: 0, wrath: 0, composure: 0, madness: 0, energyStack: 0, dead: false
       });
     });
     updateAllEnemyIntents();
@@ -1043,6 +1249,7 @@ async function newPlayerTurn() {
 
   // 3단계: 데우스 엑스 마키나 — 시간 정지 (Time Stop) 및 인과율 플래닝 개시
   B.phase = 'plan';
+  refreshIntentsForNextTurn();
   B.planQueue = [];
   saveTurnSnapshot();
 
@@ -1100,6 +1307,9 @@ async function playCard(i, tx, ty) {
 
   const pw = (o.promoted ? 1 : 0) + (c.ult ? 2 : 0);
   const fx = c.fx;
+  if (o.side === 'p') {
+    applySelfElement(o, D(o).element);
+  }
 
   log(`🃏 ${uname(o)}: [${c.name}] 발동!`);
 
@@ -1171,6 +1381,10 @@ async function playCard(i, tx, ty) {
 
   for (const u of area) {
     if (u.side === 'e') {
+      if (o.side === 'p') {
+        const element = D(o).element;
+        await applyElement(o, u, element);
+      }
       if (fx.dmg) dealDamage(u, fx.dmg + pw, o);
       if (fx.freeze && B.units.includes(u)) {
         u.frozen = fx.freeze;
@@ -1549,79 +1763,27 @@ document.addEventListener('mousemove', e => {
 });
 
 // ----- 적 턴 진행 (중독 데미지 등 처리) -----
+
+
 async function endTurn() {
-  if (B.busy || B.over) return;
+  if (B.over) return;
   B.busy = true;
-  B.sel = null;
-  B.card = null;
-  FX.clearTargetingArrow();
-  renderBattle();
 
   try {
-    // 턴 종료 시 중독(Poison) 피해 발동
-    const poisoned = B.units.filter(u => u.side === 'e' && !u.dead && u.poison > 0);
-    for (const pe of poisoned) {
-      const pDmg = pe.poison * 2;
-      log(`🧪 ${uname(pe)}가 중독으로 ${pDmg} 피해를 입었습니다!`);
-      float(pe.x, pe.y, `중독 -${pDmg}`, 'dmg');
+    // 분노(도트) 데미지 발동
+    const wrathed = B.units.filter(u => u.side === 'e' && !u.dead && (u.wrath > 0 || u.poison > 0));
+    for (const pe of wrathed) {
+      const pDmg = ((pe.wrath || 0) + (pe.poison || 0)) * 2;
+      log(`🔥 ${uname(pe)}가 분노(도트)로 ${pDmg} 피해를 입었습니다!`);
+      float(pe.x, pe.y, `분노 -${pDmg}`, 'dmg');
+      if (window.FX && FX.pixelReaction) FX.pixelReaction(pe.x, pe.y, 'wrath_tick');
       dealDamage(pe, pDmg);
-      pe.poison--;
+      if (pe.wrath > 0) pe.wrath--;
+      if (pe.poison > 0) pe.poison--;
       await sleep(200);
     }
-
-    if (B.over) return;
-
-    const enemyStatusTag = document.getElementById('clock-status-tag');
-    const enemyStatusSub = document.getElementById('clock-status-sub');
-    if (enemyStatusTag) {
-      enemyStatusTag.className = 'clock-status-tag time-enemy';
-      enemyStatusTag.textContent = '⚔️ 적의 진격';
-    }
-    if (enemyStatusSub) enemyStatusSub.textContent = '몬스터 턴 진행 중...';
-
-    Sound.turnStart(false);
-    await FX.showTurnBanner('적의 턴', '몬스터들이 진격합니다!', '#e04545');
-    await sleep(250);
-
-    // 보스 소환 체크
-    const bossSummon = B.units.find(u => u.side === 'e' && !u.dead && D(u).summon);
-    if (bossSummon) {
-      const s = D(bossSummon).summon;
-      if (B.turn % s.every === 0) {
-        spawnEnemies(Array(s.n).fill(s.id));
-        log('😈 마왕 발록이 지옥의 하수인을 소환했습니다!');
-        Sound.slash();
-        FX.shake(6);
-        renderBattle();
-        await sleep(400);
-      }
-    }
-
-    const livingAllies = B.units.filter(u => u.side === 'p' && !u.dead);
-    const order = B.units
-      .filter(u => u.side === 'e' && !u.dead)
-      .sort((a, b) => {
-        const distA = livingAllies.length ? Math.min(...livingAllies.map(p => Math.abs(a.x - p.x) + Math.abs(a.y - p.y))) : 0;
-        const distB = livingAllies.length ? Math.min(...livingAllies.map(p => Math.abs(b.x - p.x) + Math.abs(b.y - p.y))) : 0;
-        return distA - distB;
-      });
-
-    for (const e of order) {
-      if (B.over) return;
-      if (!B.units.includes(e) || e.dead) continue;
-
-      if (e.frozen > 0) {
-        e.frozen--;
-        float(e.x, e.y, '❄️ 빙결 해제', 'frz');
-        renderBattle();
-        await sleep(250);
-        continue;
-      }
-
-      await enemyAct(e);
-    }
   } catch (err) {
-    console.error('적 턴 진행 중 오류 발생:', err);
+    console.error('적 턴(상태이상) 진행 중 오류:', err);
   } finally {
     if (!B.over) {
       newPlayerTurn();
@@ -1729,6 +1891,7 @@ function buildBattleUI() {
         <div class="header-controls">
           <span class="board-size-badge" title="전장 규격: ${sz}×${sz}">${sz}×${sz}</span>
           <button id="speed-btn" class="ctrl-btn" onclick="toggleSpeed()" title="배속 변경 (단축키 1, 2, 3)">⚡ ${GameSpeed.toFixed(1)}x</button>
+          <button class="ctrl-btn" onclick="Sound.click(); showSettings()" title="설정 (BGM 볼륨 / 조작 방식)">⚙️</button>
           <button class="ctrl-btn sound-btn" onclick="toggleMuteBtn(this)">🔊</button>
         </div>
       </div>
@@ -1798,11 +1961,22 @@ function buildBattleUI() {
 
   document.getElementById('board').addEventListener('click', e => {
     const c = e.target.closest('.cell');
-    if (c) onCell(+c.dataset.x, +c.dataset.y);
+    if (!c) return;
+    const x = +c.dataset.x, y = +c.dataset.y;
+    if (getCtrlMode() === 'drag' && B.card == null) {
+      // 드래그 방식: 단순 클릭은 유닛 선택(범위 확인)만 한다
+      if (B.busy || B.over || isAutoRunning) return;
+      B.sel = unitAt(x, y) || null;
+      Sound.click();
+      renderBattle();
+      return;
+    }
+    onCell(x, y);
   });
 
   document.getElementById('board').addEventListener('contextmenu', e => {
     e.preventDefault();
+    if (getCtrlMode() === 'drag') return; // 드래그 방식: 우클릭은 이동 입력이므로 선택 해제하지 않음
     B.card = null;
     B.sel = null;
     FX.clearTargetingArrow();
@@ -1822,27 +1996,51 @@ function toggleMuteBtn(btn) {
 function renderBattle() {
   if (!B || !document.getElementById('board')) return;
   const hl = {};
-  const mark = (x, y, k) => { hl[x + ',' + y] = k; };
+  const mark = (x, y, k) => { const key = x + ',' + y; hl[key] = hl[key] ? hl[key] + ' ' + k : k; };
   const s = B.sel;
 
+  
   if (B.card != null) {
     const c = CARDS[B.hand[B.card]], oInfo = cardOwner(c);
-    if (oInfo) cardTargets(c, oInfo.unit).forEach(t => mark(t.x, t.y, 'h-card'));
+    if (oInfo) {
+      // Highlight the caster so player knows who is casting
+      mark(oInfo.unit.x, oInfo.unit.y, 'h-caster');
+      cardTargets(c, oInfo.unit).forEach(t => mark(t.x, t.y, 'h-card'));
+    }
   } else if (s && B.units.includes(s) && !s.dead) {
     if (s.side === 'p') {
+      // Show full range outlines
+      getRangeTiles(s, 'move').forEach(t => mark(t.x, t.y, 'h-move-range'));
+      getRangeTiles(s, 'atk').forEach(t => mark(t.x, t.y, 'h-atk-range'));
+      
+      // Show actual valid targets/moves
       if (!s.moved) moveTiles(s).forEach(t => mark(t.x, t.y, 'h-move'));
       if (!s.attacked) attackTargets(s).forEach(t => mark(t.x, t.y, 'h-atk'));
     } else {
+      getRangeTiles(s, 'move').forEach(t => mark(t.x, t.y, 'h-emove-range'));
+      getRangeTiles(s, 'atk').forEach(t => mark(t.x, t.y, 'h-eatk-range'));
+      
       moveTiles(s).forEach(t => mark(t.x, t.y, 'h-emove'));
       attackTargets(s).forEach(t => mark(t.x, t.y, 'h-eatk'));
     }
+  }
+
+
+
+  let dangerTiles = {};
+  if (typeof getDangerTiles === 'function') {
+    dangerTiles = getDangerTiles();
   }
 
   const sz = B.size || 6;
   let html = '';
   for (let y = 0; y < sz; y++) {
     for (let x = 0; x < sz; x++) {
+      let isDanger = dangerTiles[`${x},${y}`];
+      let dangerHtml = isDanger ? `<div class="danger-overlay" title="예고된 피해: ${isDanger}"></div>` : '';
+      
       const u = unitAt(x, y), k = hl[x + ',' + y] || '';
+
       let inner = '';
       if (u) {
         const done = u.side === 'p' && u.moved && u.attacked;
@@ -1862,8 +2060,10 @@ function renderBattle() {
 
         // 상태이상 / 패시브 스택 배지
         let buffBadges = '';
-        if (u.poison > 0) buffBadges += `<span class="u-badge poison-b" title="중독 ${u.poison}스택">🧪${u.poison}</span>`;
-        if (u.energyStack > 0) buffBadges += `<span class="u-badge energy-b" title="기력 ${u.energyStack}스택">💥${u.energyStack}</span>`;
+        if (u.poison > 0 || u.wrath > 0) buffBadges += `<span class="u-badge poison-b" title="분노/중독 ${(u.poison||0)+(u.wrath||0)}스택">🔥${(u.poison||0)+(u.wrath||0)}</span>`;
+        if (u.composure > 0) buffBadges += `<span class="u-badge freeze-b" title="냉정 ${u.composure}스택">❄️${u.composure}</span>`;
+        if (u.madness > 0) buffBadges += `<span class="u-badge madness-b" title="광기 ${u.madness}스택">⚡${u.madness}</span>`;
+        if (u.energyStack > 0) buffBadges += `<span class="u-badge energy-b" title="기력 ${u.energyStack}스택">👊${u.energyStack}</span>`;
 
         // 데우스 엑스 마키나 : 인과율 계획 순번 및 조준 배지
         let planBadgeHtml = '';
@@ -2314,4 +2514,71 @@ document.addEventListener('keydown', e => {
   } else if (e.key === '3') {
     setSpeed(3.0);
   }
+});
+
+// ===== 드래그 조작 방식 (좌클릭 드래그 = 공격, 우클릭 드래그 = 이동) =====
+let dragState = null;
+
+function cellFromPoint(px, py) {
+  const el = document.elementFromPoint(px, py);
+  const c = el && el.closest ? el.closest('#board .cell') : null;
+  return c ? { x: +c.dataset.x, y: +c.dataset.y } : null;
+}
+
+function dragAction(s, x, y, btn) {
+  if (!B || B.busy || B.over || isAutoRunning || !B.units.includes(s) || s.dead) return;
+  const u = unitAt(x, y);
+  if (btn === 2) {
+    if (!s.moved && moveTiles(s).some(t => t.x === x && t.y === y)) {
+      if (B.phase === 'plan') planMove(s, x, y); else doMove(s, x, y);
+    } else {
+      float(s.x, s.y, s.moved ? '이미 이동함' : '이동 불가', 'dmg');
+      renderBattle();
+    }
+  } else if (btn === 0) {
+    if (!s.attacked && u && u.side === 'e' && attackTargets(s).includes(u)) {
+      if (B.phase === 'plan') planAttack(s, u); else doAttack(s, u);
+    } else {
+      float(s.x, s.y, s.attacked ? '이미 공격함' : '공격 불가', 'dmg');
+      renderBattle();
+    }
+  }
+}
+
+document.addEventListener('mousedown', e => {
+  if (!B || getCtrlMode() !== 'drag' || B.busy || B.over || isAutoRunning || B.card != null) return;
+  if (e.button !== 0 && e.button !== 2) return;
+  const c = e.target.closest ? e.target.closest('#board .cell') : null;
+  if (!c) return;
+  const u = unitAt(+c.dataset.x, +c.dataset.y);
+  if (!u || u.side !== 'p') return;
+  e.preventDefault();
+  dragState = { unit: u, button: e.button, sx: e.clientX, sy: e.clientY, moved: false };
+  document.body.style.cursor = e.button === 0 ? 'crosshair' : 'move';
+  if (B.sel !== u) { B.sel = u; renderBattle(); }
+});
+
+document.addEventListener('mousemove', e => {
+  if (!dragState || !B) return;
+  if (!dragState.moved && Math.hypot(e.clientX - dragState.sx, e.clientY - dragState.sy) > 8) dragState.moved = true;
+  if (dragState.moved) {
+    const el = document.getElementById('unit-' + dragState.unit.uid);
+    if (el) FX.drawTargetingArrow(el, e.clientX, e.clientY);
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (!dragState) return;
+  const ds = dragState;
+  dragState = null;
+  document.body.style.cursor = '';
+  FX.clearTargetingArrow();
+  if (!ds.moved) return;
+  const t = cellFromPoint(e.clientX, e.clientY);
+  if (t) dragAction(ds.unit, t.x, t.y, ds.button);
+});
+
+// 드래그 방식에서는 전투 화면 어디서든 우클릭 메뉴(브라우저 팝업)를 막는다
+document.addEventListener('contextmenu', e => {
+  if (getCtrlMode() === 'drag' && document.getElementById('board')) e.preventDefault();
 });

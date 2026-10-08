@@ -313,11 +313,23 @@ const BGM = (() => {
   let isMuted = false;
   let hasStarted = false;
 
+  let volume = 0.5;
+  try {
+    const sv = parseFloat(localStorage.getItem('dem_bgm_volume'));
+    if (!isNaN(sv)) volume = Math.min(1, Math.max(0, sv));
+  } catch (e) {}
+
+  function setVolume(v) {
+    volume = Math.min(1, Math.max(0, v));
+    if (audio) audio.volume = volume;
+    try { localStorage.setItem('dem_bgm_volume', volume); } catch (e) {}
+  }
+
   function init() {
     if (audio) return;
     audio = new Audio('bgm.m4a');
     audio.loop = true;
-    audio.volume = 0.5;
+    audio.volume = volume;
 
     // 로컬 스토리지 음소거 설정 복원
     try {
@@ -407,7 +419,9 @@ const BGM = (() => {
     init,
     play: attemptPlay,
     toggleMute,
-    isMuted: () => isMuted
+    isMuted: () => isMuted,
+    setVolume,
+    getVolume: () => volume
   };
 })();
 

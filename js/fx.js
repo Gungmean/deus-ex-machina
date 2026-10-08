@@ -784,6 +784,96 @@ const FX = (() => {
     },
 
     // 파티클 스파크 생성 헬퍼
+    
+    // 도트 스타일 (Pixel Art) 시너지 리액션
+    pixelReaction(x, y, type) {
+      if (!window.gsap) return;
+      const cellSize = 68;
+      const offsetX = x * cellSize + cellSize / 2;
+      const offsetY = y * cellSize + cellSize / 2;
+      
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = `${offsetX}px`;
+      container.style.top = `${offsetY}px`;
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '10005';
+      const mapElem = document.getElementById('map');
+      if (mapElem) {
+        mapElem.appendChild(container);
+      } else {
+        document.body.appendChild(container);
+        container.style.position = 'fixed';
+        const bRect = document.getElementById('board').getBoundingClientRect();
+        container.style.left = `${bRect.left + offsetX}px`;
+        container.style.top = `${bRect.top + offsetY}px`;
+      }
+
+      if (type === 'conduction') {
+        // 번개 전도 (노란색 픽셀 번개)
+        for(let i=0; i<16; i++) {
+          const p = document.createElement('div');
+          p.style.position = 'absolute';
+          p.style.width = '6px'; p.style.height = '6px';
+          p.style.backgroundColor = '#fbbf24';
+          p.style.boxShadow = '0 0 0 1px #000, 0 0 6px #fbbf24';
+          p.style.imageRendering = 'pixelated';
+          container.appendChild(p);
+          gsap.fromTo(p, 
+            { x: 0, y: 0, opacity: 1 }, 
+            { x: (Math.random()-0.5)*80, y: (Math.random()-0.5)*80, opacity: 0, duration: 0.6, ease: 'steps(8)' }
+          );
+        }
+      } else if (type === 'detonation') {
+        // 폭발 (빨간/주황 픽셀 폭발)
+        for(let i=0; i<30; i++) {
+          const p = document.createElement('div');
+          p.style.position = 'absolute';
+          p.style.width = '8px'; p.style.height = '8px';
+          p.style.backgroundColor = Math.random() > 0.5 ? '#ef4444' : '#f97316';
+          p.style.boxShadow = '0 0 0 1px #000';
+          p.style.imageRendering = 'pixelated';
+          container.appendChild(p);
+          gsap.fromTo(p, 
+            { x: 0, y: 0, scale: 1 }, 
+            { x: (Math.random()-0.5)*150, y: (Math.random()-0.5)*150, scale: 0, duration: 0.8, ease: 'steps(10)' }
+          );
+        }
+      } else if (type === 'swirl') {
+        // 바람 확산 (초록/흰색 픽셀 회오리)
+        for(let i=0; i<20; i++) {
+          const p = document.createElement('div');
+          p.style.position = 'absolute';
+          p.style.width = '5px'; p.style.height = '5px';
+          p.style.backgroundColor = '#86efac';
+          p.style.boxShadow = '0 0 0 1px #000';
+          p.style.imageRendering = 'pixelated';
+          container.appendChild(p);
+          const angle = (i / 10) * Math.PI * 2;
+          gsap.fromTo(p,
+            { x: 0, y: 0, opacity: 1 },
+            { x: Math.cos(angle)*60, y: Math.sin(angle)*60, rotation: 180, opacity: 0, duration: 0.7, ease: 'steps(8)' }
+          );
+        }
+      } else if (type === 'wrath_tick') {
+        // 분노 틱 (작은 불똥 픽셀)
+        for(let i=0; i<5; i++) {
+          const p = document.createElement('div');
+          p.style.position = 'absolute';
+          p.style.width = '4px'; p.style.height = '4px';
+          p.style.backgroundColor = '#ef4444';
+          p.style.boxShadow = '0 0 0 1px #000';
+          p.style.imageRendering = 'pixelated';
+          container.appendChild(p);
+          gsap.fromTo(p,
+            { x: (Math.random()-0.5)*30, y: 10, opacity: 1 },
+            { y: -30 - Math.random()*20, opacity: 0, duration: 0.5, ease: 'steps(4)' }
+          );
+        }
+      }
+      setTimeout(() => container.remove(), 600);
+    },
+
     createSparkles(x, y, color = '#ffd700', count = 12) {
       if (!window.gsap) return;
       const container = document.createElement('div');

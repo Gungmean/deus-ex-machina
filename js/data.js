@@ -84,7 +84,7 @@ const COMMON_CARDS = ['c_guard', 'c_rally', 'c_strike', 'c_elixir', 'c_tactic'];
 // 클래스 정의 (메이플 10개 직업 & 고유 패시브 & 체스 진화형 전직)
 const CLASSES = [
   {
-    id: 'warrior', name: '전사', icon: '🛡️', theme: '#b23b3b', hp: 11, atk: 2,
+    id: 'warrior', name: '전사', icon: '🛡️', theme: '#b23b3b', hp: 11, atk: 2, element: 'tenacity',
     move: { dirs: 'all', range: 1 }, atkp: { dirs: 'all', range: 1 },
     cards: ['w1', 'w2', 'w3'], ultCard: 'w_ult',
     passive: { name: '스탠스/도발', icon: '🛡️', desc: '피격 시 방어도 +2 획득. 인접 아군(킹 포함) 피격 시 대신 맞아줌.' },
@@ -96,7 +96,7 @@ const CLASSES = [
     desc: '아군을 지키는 든든한 방패. 전직 시 룩처럼 직선을 가르는 돌격병으로 진화.'
   },
   {
-    id: 'fire', name: '불독 마법사', icon: '🔥', theme: '#c44d18', hp: 5, atk: 2,
+    id: 'fire', name: '불독 마법사', icon: '🔥', theme: '#c44d18', hp: 5, atk: 2, element: 'wrath',
     move: { dirs: 'diag', range: 2 }, atkp: { dirs: 'all', range: 2 },
     cards: ['f1', 'f2', 'f3'], ultCard: 'f_ult',
     passive: { name: '화염과 맹독', icon: '🧪', desc: '공격/스킬로 맞은 적에게 중독 1스택 부여. 턴 종료 시 스택당 2 고정 피해.' },
@@ -108,7 +108,7 @@ const CLASSES = [
     desc: '독과 불을 중첩시켜 지속 피해를 주는 마법사. 전직 시 퀸급 기동 획득.'
   },
   {
-    id: 'ice', name: '썬콜 마법사', icon: '❄️', theme: '#2f74b5', hp: 5, atk: 2,
+    id: 'ice', name: '썬콜 마법사', icon: '❄️', theme: '#2f74b5', hp: 5, atk: 2, element: 'composure',
     move: { dirs: 'orth', range: 1 }, atkp: { dirs: 'diag', range: 3 },
     cards: ['i1', 'i2', 'i3'], ultCard: 'i_ult',
     passive: { name: '동결 분쇄', icon: '⚡', desc: '빙결 상태인 적 공격 시 피해량 2배 치명타. 빙결 해제 시 2 추가 피해.' },
@@ -120,7 +120,7 @@ const CLASSES = [
     desc: '빙결로 적의 행동을 묶고 산산조각 내는 냉기 마법사.'
   },
   {
-    id: 'cleric', name: '클레릭', icon: '✨', theme: '#d4aa29', hp: 6, atk: 1,
+    id: 'cleric', name: '클레릭', icon: '✨', theme: '#d4aa29', hp: 6, atk: 1, element: 'longing',
     move: { dirs: 'all', range: 1 }, atkp: { dirs: 'orth', range: 1 },
     cards: ['c1', 'c2', 'c3'], ultCard: 'c_ult',
     passive: { name: '홀리 오라', icon: '🕊️', desc: '매 턴 시작 시 자신과 인접 8칸 내 모든 아군 체력 +2 자동 치유.' },
@@ -132,7 +132,7 @@ const CLASSES = [
     desc: '아군을 치유하는 성직자. 전직 시 비숍처럼 대각선 전장을 종횡무진 누빔.'
   },
   {
-    id: 'archer', name: '헌터', icon: '🏹', theme: '#38761d', hp: 5, atk: 2,
+    id: 'archer', name: '헌터', icon: '🏹', theme: '#38761d', hp: 5, atk: 2, element: 'freedom',
     move: { dirs: 'orth', range: 2 }, atkp: { dirs: 'diag', range: 4 },
     cards: ['a1', 'a2', 'a3'], ultCard: 'a_ult',
     passive: { name: '스나이핑', icon: '🎯', desc: '3칸 이상 거리에서 공격 시 피해량 +3 치명타 보너스.' },
@@ -144,7 +144,7 @@ const CLASSES = [
     desc: '먼 거리에서 적을 저격하는 명사수. 거리가 멀수록 데미지 폭증.'
   },
   {
-    id: 'thief', name: '어쌔신', icon: '🗡️', theme: '#743b8c', hp: 5, atk: 3,
+    id: 'thief', name: '어쌔신', icon: '🗡️', theme: '#743b8c', hp: 5, atk: 3, element: 'madness',
     move: { dirs: 'knight', range: 1 }, atkp: { dirs: 'all', range: 1 },
     cards: ['t1', 't2', 't3'], ultCard: 't_ult',
     passive: { name: '헤이스트', icon: '💨', desc: '나이트 점프 착지 시 인접 적에게 방어도 무시 2 급습 피해.' },
@@ -156,7 +156,7 @@ const CLASSES = [
     desc: '장애물을 뛰어넘는 암살자. 전직 시 나이트 점프와 대각 기동을 겸비.'
   },
   {
-    id: 'gunner', name: '건슬링거', icon: '🔫', theme: '#8c593b', hp: 6, atk: 2,
+    id: 'gunner', name: '건슬링거', icon: '🔫', theme: '#8c593b', hp: 6, atk: 2, element: 'madness',
     move: { dirs: 'all', range: 1 }, atkp: { dirs: 'orth', range: 3 },
     cards: ['g1', 'g2', 'g3'], ultCard: 'g_ult',
     passive: { name: '탄환 장전', icon: '⚙️', desc: '매 턴 첫 공격 성공 시 에너지 코스트 +1 페이백 충전.' },
@@ -168,7 +168,7 @@ const CLASSES = [
     desc: '직선 탄환을 쏟아내는 기동 포수. 공격 시 마나를 환급받음.'
   },
   {
-    id: 'spear', name: '스피어맨', icon: '🔱', theme: '#993d59', hp: 8, atk: 2,
+    id: 'spear', name: '스피어맨', icon: '🔱', theme: '#993d59', hp: 8, atk: 2, element: 'tenacity',
     move: { dirs: 'orth', range: 3 }, atkp: { dirs: 'orth', range: 2, pierce: true },
     cards: ['s1', 's2', 's3'], ultCard: 's_ult',
     passive: { name: '팔랑크스 진형', icon: '🏛️', desc: '인접한 아군과 자신에게 매 턴 방어도 +3 상시 전개.' },
@@ -180,7 +180,7 @@ const CLASSES = [
     desc: '긴 장창으로 일렬을 꿰뚫는 중장보병. 아군 진형에 방어도를 부여.'
   },
   {
-    id: 'brawler', name: '인파이터', icon: '👊', theme: '#bf5026', hp: 8, atk: 3,
+    id: 'brawler', name: '인파이터', icon: '👊', theme: '#bf5026', hp: 8, atk: 3, element: 'wrath',
     move: { dirs: 'diag', range: 3 }, atkp: { dirs: 'all', range: 1 },
     cards: ['b1', 'b2', 'b3'], ultCard: 'b_ult',
     passive: { name: '에너지 차지', icon: '💥', desc: '공격할 때마다 기력 스택 +1 (최대 3). 스택당 공격력 +1 영구 증가!' },
@@ -192,7 +192,7 @@ const CLASSES = [
     desc: '싸울수록 강해지는 격투가. 전직 시 적을 날려버리는 파동권 구사.'
   },
   {
-    id: 'cannon', name: '캐논슈터', icon: '💣', theme: '#5c4832', hp: 7, atk: 3,
+    id: 'cannon', name: '캐논슈터', icon: '💣', theme: '#5c4832', hp: 7, atk: 3, element: 'wrath',
     move: { dirs: 'orth', range: 1 }, atkp: { dirs: 'all', range: 4, minRange: 2, arc: true },
     cards: ['n1', 'n2', 'n3'], ultCard: 'n_ult',
     passive: { name: '원숭이 보급', icon: '🐵', desc: '매 턴 시작 시 코스트 0 [보급 바나나](HP 3 회복/마나 충전) 1장 생성.' },
